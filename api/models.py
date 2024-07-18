@@ -36,6 +36,8 @@ class Enrollment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='enrollments', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='enrollments', on_delete=models.CASCADE)
     time = models.DateTimeField()
+    confirmed = models.BooleanField(default=False)
+    confirmation_time = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.email} - {self.section.name}"
