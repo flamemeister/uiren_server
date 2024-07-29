@@ -1,19 +1,28 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from django.utils import timezone
-from .models import Center, Section, Subscription, Enrollment, Feedback
-from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer
-import datetime
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
+from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
 
+class SectionCategoryViewSet(viewsets.ModelViewSet):
+    queryset = SectionCategory.objects.all()
+    serializer_class = SectionCategorySerializer
+
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        category = self.request.query_params.get('category', None)
+        if category:
+            queryset = queryset.filter(category__name=category)
+        return queryset
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
@@ -52,4 +61,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
     serializer_class = FeedbackSerializer
 
+from django.shortcuts import render
+
+def index(request):
+    return render(request, 'index.html')
 

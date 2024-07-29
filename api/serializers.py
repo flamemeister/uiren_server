@@ -1,14 +1,21 @@
 from rest_framework import serializers
-from .models import Center, Section, Subscription, Enrollment, Feedback
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
 
-class CenterSerializer(serializers.ModelSerializer):
+class SectionCategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = Center
+        model = SectionCategory
         fields = '__all__'
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
+        fields = '__all__'
+
+class CenterSerializer(serializers.ModelSerializer):
+    sections = SectionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Center
         fields = '__all__'
 
 class SubscriptionSerializer(serializers.ModelSerializer):

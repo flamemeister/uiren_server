@@ -9,13 +9,23 @@ class Center(models.Model):
     def __str__(self):
         return self.name
 
-class Section(models.Model):
-    center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
+class SectionCategory(models.Model):
     name = models.CharField(max_length=255)
-    schedule = models.TextField()
 
     def __str__(self):
         return self.name
+
+class Section(models.Model):
+    center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
+    schedule = models.TextField()
+    available_times = models.JSONField(default=list)
+
+    def __str__(self):
+        return self.name
+
+
 
 class Subscription(models.Model):
     TYPE_CHOICES = (
