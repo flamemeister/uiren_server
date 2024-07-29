@@ -1,15 +1,26 @@
 from django.contrib import admin
-from .models import Center, Section, Subscription, Enrollment, Feedback
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
+
+class SectionInline(admin.TabularInline):
+    model = Section
+    extra = 1
 
 @admin.register(Center)
 class CenterAdmin(admin.ModelAdmin):
     list_display = ('name', 'location')
     search_fields = ('name', 'location')
+    inlines = [SectionInline]
+
+@admin.register(SectionCategory)
+class SectionCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
-    list_display = ('name', 'center')
-    search_fields = ('name', 'center__name')
+    list_display = ('name', 'center', 'category')
+    search_fields = ('name', 'center__name', 'category__name')
+    list_filter = ('category',)
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
