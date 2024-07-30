@@ -24,8 +24,8 @@ class SectionAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'center', 'type', 'name')
-    search_fields = ('user__email', 'center__name', 'type', 'name')
+    list_display = ('user', 'center', 'section', 'type', 'name')
+    search_fields = ('user__email', 'center__name', 'section__name', 'type', 'name')
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):

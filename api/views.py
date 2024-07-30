@@ -60,9 +60,3 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
     serializer_class = FeedbackSerializer
-
-from django.shortcuts import render
-
-def index(request):
-    return render(request, 'index.html')
-

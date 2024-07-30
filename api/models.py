@@ -19,13 +19,11 @@ class Section(models.Model):
     center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
-    schedule = models.TextField()
-    available_times = models.JSONField(default=list)
+    schedule = models.JSONField(default=dict, null=True, blank=True)
+    available_times = models.JSONField(default=list, null= True,blank=True)
 
     def __str__(self):
         return self.name
-
-
 
 class Subscription(models.Model):
     TYPE_CHOICES = (
@@ -36,6 +34,7 @@ class Subscription(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='subscriptions', on_delete=models.CASCADE)
     center = models.ForeignKey(Center, related_name='subscriptions', on_delete=models.CASCADE)
+    section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE, null=True, blank=True)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
     name = models.CharField(max_length=255)
 
