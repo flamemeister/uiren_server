@@ -2,13 +2,37 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+# models.py
+import qrcode
+import io
+from django.db import models
+from django.core.files.base import ContentFile
+
+def generate_qr_code(data):
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill='black', back_color='white')
+    buf = io.BytesIO()
+    img.save(buf)
+    image_stream = buf.getvalue()
+    return ContentFile(image_stream)
+
 class Center(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     location = models.CharField(max_length=255)
+    qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.qr_code:
+            qr_code_file = generate_qr_code(f'{self.id}')
+            self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
+        super().save(*args, **kwargs)
+
 
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)

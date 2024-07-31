@@ -77,3 +77,43 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
     serializer_class = FeedbackSerializer
+
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Center, Enrollment, Subscription
+
+@api_view(['POST'])
+def confirm_attendance(request):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Authentication credentials were not provided'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    qr_code_data = request.data.get('qr_code', None)
+    if qr_code_data is None:
+        return Response({'error': 'QR code data not provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    center = get_object_or_404(Center, id=qr_code_data)
+    user = request.user
+
+    # Получаем все абонементы пользователя для указанного центра
+    subscriptions = Subscription.objects.filter(user=user, center=center)
+    if not subscriptions.exists():
+        return Response({'error': 'No active subscription found for this center'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Проверяем наличие активной записи
+    enrollment = Enrollment.objects.filter(user=user, section__center=center, confirmed=False).first()
+    if not enrollment:
+        return Response({'error': 'No active enrollment found for this center'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Подтверждаем запись
+    enrollment.confirmed = True
+    enrollment.confirmation_time = timezone.now()
+    enrollment.save()
+
+    return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
+
+
+
+
+
