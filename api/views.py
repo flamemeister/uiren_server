@@ -28,6 +28,23 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
 
+    @action(detail=False, methods=['get'])
+    def my_subscriptions(self, request):
+        user = request.user
+        subscriptions = Subscription.objects.filter(user=user)
+        serializer = self.get_serializer(subscriptions, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def rename(self, request, pk=None):
+        subscription = self.get_object()
+        if subscription.user != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        new_name = request.data.get('name')
+        subscription.name = new_name
+        subscription.save()
+        return Response(status=status.HTTP_200_OK)
+
 class EnrollmentViewSet(viewsets.ModelViewSet):
     queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer
