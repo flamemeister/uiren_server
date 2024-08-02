@@ -1,11 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-
-# models.py
 import qrcode
 import io
-from django.db import models
 from django.core.files.base import ContentFile
 
 def generate_qr_code(data):
@@ -62,9 +59,12 @@ class Subscription(models.Model):
     section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE, null=True, blank=True)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
     name = models.CharField(max_length=255)
+    activation_date = models.DateTimeField(auto_now_add=True)
+    expiration_date = models.DateTimeField()
 
     def __str__(self):
         return f"{self.name} - {self.type}"
+
 
 class Enrollment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='enrollments', on_delete=models.CASCADE)
@@ -79,7 +79,6 @@ class Enrollment(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        # Check for more than 3 enrollments per subscription per day
         enrollments_on_same_day = Enrollment.objects.filter(
             subscription=self.subscription,
             time__date=self.time.date()
@@ -87,7 +86,6 @@ class Enrollment(models.Model):
         if enrollments_on_same_day >= 3:
             raise ValidationError('You cannot have more than 3 enrollments per subscription per day.')
 
-        # Check for overlapping times
         overlapping_enrollments = Enrollment.objects.filter(
             subscription=self.subscription,
             time=self.time

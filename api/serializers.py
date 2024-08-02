@@ -16,7 +16,7 @@ class SectionSerializer(serializers.ModelSerializer):
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
-        fields = ['id', 'user', 'center', 'section', 'type', 'name']
+        fields = ['id', 'user', 'center', 'section', 'type', 'name', 'activation_date', 'expiration_date', 'is_active']
 
     def update(self, instance, validated_data):
         if 'name' in validated_data:
@@ -24,13 +24,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
+
 class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Enrollment
         fields = ['id', 'user', 'section', 'subscription', 'time', 'confirmed', 'confirmation_time']
 
     def validate(self, data):
-        # Ensure no more than 3 enrollments per subscription per day
         enrollments_on_same_day = Enrollment.objects.filter(
             subscription=data['subscription'],
             time__date=data['time'].date()
@@ -38,7 +39,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         if enrollments_on_same_day >= 3:
             raise serializers.ValidationError('You cannot have more than 3 enrollments per subscription per day.')
 
-        # Ensure no overlapping times
         overlapping_enrollments = Enrollment.objects.filter(
             subscription=data['subscription'],
             time=data['time']
