@@ -38,7 +38,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         ).count()
         if enrollments_on_same_day >= 3:
             raise serializers.ValidationError('You cannot have more than 3 enrollments per subscription per day.')
-
         overlapping_enrollments = Enrollment.objects.filter(
             subscription=data['subscription'],
             time=data['time']

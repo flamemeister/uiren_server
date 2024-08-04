@@ -60,7 +60,8 @@ class Subscription(models.Model):
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
     name = models.CharField(max_length=255)
     activation_date = models.DateTimeField(auto_now_add=True)
-    expiration_date = models.DateTimeField()
+    expiration_date = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=30))
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.name} - {self.type}"
