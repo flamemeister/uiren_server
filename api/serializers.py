@@ -1,12 +1,16 @@
 from rest_framework import serializers
 from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
 
+from rest_framework import serializers
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
+
 class CenterSerializer(serializers.ModelSerializer):
     sections = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    qr_code_url = serializers.ImageField(source='qr_code', read_only=True)
 
     class Meta:
         model = Center
-        fields = ['id', 'name', 'description', 'location', 'sections']
+        fields = ['id', 'name', 'description', 'location', 'sections', 'qr_code_url']
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,8 +27,6 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             instance.name = validated_data['name']
         instance.save()
         return instance
-
-
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:

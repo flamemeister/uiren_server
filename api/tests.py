@@ -10,7 +10,6 @@ class QRCodeAttendanceTests(APITestCase):
         self.user = User.objects.create_user(username='testuser', password='testpass')
         self.center = Center.objects.create(name='Test Center', description='Test Description', location='Test Location')
 
-        # Создаем абонемент для пользователя
         self.subscription = Subscription.objects.create(user=self.user, center=self.center, type='8 уроков', name='Test Subscription')
         self.enrollment = Enrollment.objects.create(user=self.user, section=None, subscription=self.subscription, time=timezone.now())
 

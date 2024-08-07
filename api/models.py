@@ -4,9 +4,15 @@ from django.utils import timezone
 import qrcode
 import io
 from django.core.files.base import ContentFile
+import json
 
 def generate_qr_code(data):
-    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4
+    )
     qr.add_data(data)
     qr.make(fit=True)
     img = qr.make_image(fill='black', back_color='white')
@@ -25,11 +31,18 @@ class Center(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        if not self.qr_code:
-            qr_code_file = generate_qr_code(f'{self.id}')
-            self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
-        super().save(*args, **kwargs)
+        creating = self.pk is None
+        super(Center, self).save(*args, **kwargs)
 
+        if creating and not self.qr_code:
+            data = {
+                'center_id': self.id,
+                'center_name': self.name,
+                'sections': list(self.sections.values('id', 'name'))
+            }
+            qr_code_file = generate_qr_code(json.dumps(data))
+            self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
+            self.save(update_fields=['qr_code'])
 
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)
@@ -46,6 +59,10 @@ class Section(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.center.save()  
 
 class Subscription(models.Model):
     TYPE_CHOICES = (
