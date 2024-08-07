@@ -6,6 +6,14 @@ import io
 from django.core.files.base import ContentFile
 import json
 
+import json
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+import qrcode
+import io
+from django.core.files.base import ContentFile
+
 def generate_qr_code(data):
     qr = qrcode.QRCode(
         version=1,
@@ -26,7 +34,7 @@ class Center(models.Model):
     description = models.TextField()
     location = models.CharField(max_length=255)
     qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
-    link = models.CharField(max_length=256, blank=True, null=True)
+    link = models.CharField(max_length=200, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -44,6 +52,7 @@ class Center(models.Model):
             qr_code_file = generate_qr_code(json.dumps(data))
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             self.save(update_fields=['qr_code'])
+
 
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)

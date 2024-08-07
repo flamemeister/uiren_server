@@ -10,12 +10,12 @@ class CenterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Center
-        fields = ['id', 'name', 'description', 'location', 'sections', 'qr_code_url']
+        fields = ['id', 'name', 'description', 'location', 'sections', 'qr_code_url', 'link']
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
-        fields = ['id', 'center', 'name', 'category', 'schedule', 'available_times']
+        fields = ['id', 'name', 'center', 'category', 'schedule', 'available_times']
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:

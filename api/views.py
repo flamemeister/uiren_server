@@ -21,6 +21,17 @@ class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
 
+    @action(detail=True, methods=['get'])
+    def qr_info(self, request, pk=None):
+        center = self.get_object()
+        sections = center.sections.all()
+        data = {
+            'center_id': center.id,
+            'center_name': center.name,
+            'sections': [{'id': section.id, 'name': section.name} for section in sections]
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
