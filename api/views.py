@@ -114,22 +114,34 @@ def confirm_attendance(request):
         return Response({'error': 'Invalid QR code data'}, status=status.HTTP_400_BAD_REQUEST)
 
     center = get_object_or_404(Center, id=center_id)
-    section = get_object_or_404(Section, id=section_id)
+    section = get_object_or_404(Section, id=section_id, center=center)
     user = request.user
 
     subscriptions = Subscription.objects.filter(user=user, center=center)
     if not subscriptions.exists():
         return Response({'error': 'No active subscription found for this center'}, status=status.HTTP_400_BAD_REQUEST)
 
+    subscription = subscriptions.first()
+
+    # Попытка найти существующую запись на занятие
     enrollment = Enrollment.objects.filter(user=user, section=section, confirmed=False).first()
+
+    # Если запись не найдена, создаем новую
     if not enrollment:
-        return Response({'error': 'No active enrollment found for this section'}, status=status.HTTP_400_BAD_REQUEST)
+        enrollment = Enrollment.objects.create(
+            user=user,
+            section=section,
+            subscription=subscription,
+            time=timezone.now(),  # Или любое другое время, если нужно
+            confirmed=True,
+            confirmation_time=timezone.now()
+        )
+    else:
+        enrollment.confirmed = True
+        enrollment.confirmation_time = timezone.now()
+        enrollment.save()
 
-    enrollment.confirmed = True
-    enrollment.confirmation_time = timezone.now()
-    enrollment.save()
-
-    return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
+    return Response({'message': 'Attendance confirmed and enrollment created successfully'}, status=status.HTTP_200_OK)
 
 
 
