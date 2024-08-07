@@ -5,12 +5,14 @@ from .models import CustomUser
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'date_joined', 'is_active', 'is_staff']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'date_joined', 'is_active', 'is_staff', 'role']
 
     def update(self, instance, validated_data):
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.phone_number = validated_data.get('phone_number', instance.phone_number)
+        instance.role = validated_data.get('role', instance.role)
+
         instance.save()
         return instance
 
@@ -19,7 +21,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'first_name', 'last_name', 'phone_number','password')
+        fields = ('email', 'first_name', 'last_name', 'phone_number','password', 'role')
 
     def create(self, validated_data):
         user = CustomUser.objects.create_user(
@@ -27,7 +29,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
             phone_number=validated_data['phone_number'],
-            password=validated_data['password']
+            password=validated_data['password'],
+            role=validated_data['role'],
         )
         return user
 
