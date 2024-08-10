@@ -1,16 +1,20 @@
 from django.contrib import admin
 from django.utils import timezone
-from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory, Schedule
 
 class SectionInline(admin.TabularInline):
     model = Section
+    extra = 1
+
+class ScheduleInline(admin.TabularInline):
+    model = Schedule
     extra = 1
 
 @admin.register(Center)
 class CenterAdmin(admin.ModelAdmin):
     list_display = ('name', 'location')
     search_fields = ('name', 'location')
-    inlines = [SectionInline]
+    inlines = [SectionInline, ScheduleInline]
 
 @admin.register(SectionCategory)
 class SectionCategoryAdmin(admin.ModelAdmin):
@@ -22,6 +26,13 @@ class SectionAdmin(admin.ModelAdmin):
     list_display = ('name', 'center', 'category')
     search_fields = ('name', 'center__name', 'category__name')
     list_filter = ('category',)
+    inlines = [ScheduleInline]
+
+@admin.register(Schedule)
+class ScheduleAdmin(admin.ModelAdmin):
+    list_display = ('center', 'section', 'day_of_week', 'start_time', 'end_time')
+    search_fields = ('center__name', 'section__name', 'day_of_week')
+    list_filter = ('day_of_week', 'center', 'section')
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):

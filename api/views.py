@@ -4,33 +4,10 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
 from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Center, Enrollment, Subscription
-
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-import json
-from .models import Center, Section, Enrollment, Subscription
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
-
-    @action(detail=True, methods=['get'])
-    def qr_info(self, request, pk=None):
-        center = self.get_object()
-        sections = center.sections.all()
-        data = {
-            'center_id': center.id,
-            'center_name': center.name,
-            'sections': [{'id': section.id, 'name': section.name} for section in sections]
-        }
-        return Response(data, status=status.HTTP_200_OK)
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
@@ -105,8 +82,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-import json
-from .models import Center, Section, Enrollment, Subscription
+from .models import Center, Enrollment, Subscription
 
 @api_view(['POST'])
 def confirm_attendance(request):
@@ -117,44 +93,22 @@ def confirm_attendance(request):
     if qr_code_data is None:
         return Response({'error': 'QR code data not provided'}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        data = json.loads(qr_code_data)
-        center_id = data.get('center_id')
-        section_id = data.get('section_id')
-    except (ValueError, KeyError):
-        return Response({'error': 'Invalid QR code data'}, status=status.HTTP_400_BAD_REQUEST)
-
-    center = get_object_or_404(Center, id=center_id)
-    section = get_object_or_404(Section, id=section_id, center=center)
+    center = get_object_or_404(Center, id=qr_code_data)
     user = request.user
 
     subscriptions = Subscription.objects.filter(user=user, center=center)
     if not subscriptions.exists():
         return Response({'error': 'No active subscription found for this center'}, status=status.HTTP_400_BAD_REQUEST)
 
-    subscription = subscriptions.first()
-
-    # Попытка найти существующую запись на занятие
-    enrollment = Enrollment.objects.filter(user=user, section=section, confirmed=False).first()
-
-    # Если запись не найдена, создаем новую
+    enrollment = Enrollment.objects.filter(user=user, section__center=center, confirmed=False).first()
     if not enrollment:
-        enrollment = Enrollment.objects.create(
-            user=user,
-            section=section,
-            subscription=subscription,
-            time=timezone.now(),  # Или любое другое время, если нужно
-            confirmed=True,
-            confirmation_time=timezone.now()
-        )
-    else:
-        enrollment.confirmed = True
-        enrollment.confirmation_time = timezone.now()
-        enrollment.save()
+        return Response({'error': 'No active enrollment found for this center'}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({'message': 'Attendance confirmed and enrollment created successfully'}, status=status.HTTP_200_OK)
+    enrollment.confirmed = True
+    enrollment.confirmation_time = timezone.now()
+    enrollment.save()
 
-
+    return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
 
 
 

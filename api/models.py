@@ -6,14 +6,6 @@ import io
 from django.core.files.base import ContentFile
 import json
 
-import json
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-import qrcode
-import io
-from django.core.files.base import ContentFile
-
 def generate_qr_code(data):
     qr = qrcode.QRCode(
         version=1,
@@ -53,7 +45,6 @@ class Center(models.Model):
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             self.save(update_fields=['qr_code'])
 
-
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)
 
@@ -64,7 +55,6 @@ class Section(models.Model):
     center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
-    schedule = models.JSONField(default=dict, null=True, blank=True)
     available_times = models.JSONField(default=list, null=True, blank=True)
 
     def __str__(self):
@@ -73,6 +63,24 @@ class Section(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.center.save()  
+
+class Schedule(models.Model):
+    center = models.ForeignKey(Center, related_name='schedules', on_delete=models.CASCADE)
+    section = models.ForeignKey(Section, related_name='schedules', on_delete=models.CASCADE)
+    day_of_week = models.CharField(max_length=9, choices=[
+        ('Monday', 'Monday'),
+        ('Tuesday', 'Tuesday'),
+        ('Wednesday', 'Wednesday'),
+        ('Thursday', 'Thursday'),
+        ('Friday', 'Friday'),
+        ('Saturday', 'Saturday'),
+        ('Sunday', 'Sunday')
+    ])
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    def __str__(self):
+        return f"{self.center.name} - {self.section.name} on {self.day_of_week} from {self.start_time} to {self.end_time}"
 
 class Subscription(models.Model):
     TYPE_CHOICES = (
@@ -92,7 +100,6 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.type}"
-
 
 class Enrollment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='enrollments', on_delete=models.CASCADE)

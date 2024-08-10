@@ -1,8 +1,5 @@
 from rest_framework import serializers
-from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
-
-from rest_framework import serializers
-from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory, Schedule
 
 class CenterSerializer(serializers.ModelSerializer):
     sections = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
@@ -12,10 +9,17 @@ class CenterSerializer(serializers.ModelSerializer):
         model = Center
         fields = ['id', 'name', 'description', 'location', 'sections', 'qr_code_url', 'link']
 
+class ScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Schedule
+        fields = ['id', 'center', 'section', 'day_of_week', 'start_time', 'end_time']
+
 class SectionSerializer(serializers.ModelSerializer):
+    schedules = ScheduleSerializer(many=True, read_only=True, source='schedules')
+
     class Meta:
         model = Section
-        fields = ['id', 'name', 'center', 'category', 'schedule', 'available_times']
+        fields = ['id', 'name', 'center', 'category', 'schedules', 'available_times']
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
