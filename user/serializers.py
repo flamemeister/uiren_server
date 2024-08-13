@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import CustomUser
-
+from rest_framework import serializers
+from .models import CustomUser
+from .utils import generate_random_password  # Импортируем функцию генерации пароля
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,24 +19,28 @@ class CustomUserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, default=generate_random_password, required=False)
 
     class Meta:
         model = CustomUser
         fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role')  # Добавление ИИН
 
     def create(self, validated_data):
+        # Если пароль не передан, генерируем случайный пароль
+        password = validated_data.get('password') or generate_random_password()
         user = CustomUser.objects.create_user(
             email=validated_data['email'],
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
             phone_number=validated_data['phone_number'],
             iin=validated_data['iin'],  # Добавление ИИН
-            password=validated_data['password'],
+            password=password,
             role=validated_data['role'],
         )
         return user
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:

@@ -5,6 +5,7 @@ from django.utils import timezone
 from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
 from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
 import json
+from user.models import CustomUser
 
 
 class CenterViewSet(viewsets.ModelViewSet):
@@ -26,14 +27,17 @@ class SectionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(category__name=category)
         return queryset
 
+
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
 
     @action(detail=False, methods=['get'])
     def my_subscriptions(self, request):
-        user = request.user
-        subscriptions = Subscription.objects.filter(user=user)
+        iin = request.query_params.get('iin')
+        if not iin:
+            return Response({"error": "IIN is required"}, status=status.HTTP_400_BAD_REQUEST)
+        subscriptions = Subscription.objects.filter(user__iin=iin)
         serializer = self.get_serializer(subscriptions, many=True)
         return Response(serializer.data)
 

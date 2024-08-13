@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory, Schedule
+from user.models import CustomUser
 
 class CenterSerializer(serializers.ModelSerializer):
     sections = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
@@ -23,15 +24,19 @@ class SectionSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
+    iin = serializers.CharField(source='user.iin')
+    password = serializers.CharField(source='user.password', write_only=True)  # Включение пароля
+
     class Meta:
         model = Subscription
-        fields = ['id', 'user', 'center', 'section', 'type', 'name', 'activation_date', 'expiration_date', 'is_active']
+        fields = ['id', 'iin', 'password', 'center', 'section', 'type', 'name', 'activation_date', 'expiration_date', 'is_active']
 
-    def update(self, instance, validated_data):
-        if 'name' in validated_data:
-            instance.name = validated_data['name']
-        instance.save()
-        return instance
+
+    def create(self, validated_data):
+        iin = validated_data.pop('user')['iin']
+        user = CustomUser.objects.get(iin=iin)
+        subscription = Subscription.objects.create(user=user, **validated_data)
+        return subscriptionce
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:

@@ -5,6 +5,7 @@ import qrcode
 import io
 from django.core.files.base import ContentFile
 import json
+from user.models import CustomUser
 
 def generate_qr_code(data):
     qr = qrcode.QRCode(
@@ -60,7 +61,6 @@ class Center(models.Model):
             self.save(update_fields=['qr_code'])
 
 
-
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)
 
@@ -105,7 +105,7 @@ class Subscription(models.Model):
         ('12 уроков', '12 уроков')
     )
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='subscriptions', on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, to_field='iin', db_column='iin', related_name='subscriptions', on_delete=models.CASCADE)
     center = models.ForeignKey(Center, related_name='subscriptions', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE, null=True, blank=True)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
@@ -130,19 +130,23 @@ class Enrollment(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+        # Проверка на количество занятий в день
         enrollments_on_same_day = Enrollment.objects.filter(
             subscription=self.subscription,
             time__date=self.time.date()
         ).count()
-        if enrollments_on_same_day >= 3:
-            raise ValidationError('You cannot have more than 3 enrollments per subscription per day.')
+        if enrollments_on_same_day >= 5:
+            raise ValidationError('You cannot have more than 5 enrollments per subscription per day.')
 
+        # Проверка на интервал в 1 час
         overlapping_enrollments = Enrollment.objects.filter(
             subscription=self.subscription,
-            time=self.time
+            time__gte=self.time - timezone.timedelta(hours=1),
+            time__lte=self.time + timezone.timedelta(hours=1)
         ).exists()
         if overlapping_enrollments:
-            raise ValidationError('Enrollment times cannot overlap.')
+            raise ValidationError('There must be at least 1 hour between enrollments.')
+
 
 class Feedback(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='feedbacks', on_delete=models.CASCADE)
