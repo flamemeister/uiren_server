@@ -52,7 +52,6 @@ class Center(models.Model):
                 'sections': list(self.sections.values('id', 'name'))
             }
 
-            # Добавление ID подписки к QR-коду
             if subscriptions.exists():
                 data['subscription_id'] = subscriptions.first().id
 
@@ -130,7 +129,6 @@ class Enrollment(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        # Проверка на количество занятий в день
         enrollments_on_same_day = Enrollment.objects.filter(
             subscription=self.subscription,
             time__date=self.time.date()
@@ -138,7 +136,6 @@ class Enrollment(models.Model):
         if enrollments_on_same_day >= 5:
             raise ValidationError('You cannot have more than 5 enrollments per subscription per day.')
 
-        # Проверка на интервал в 1 час
         overlapping_enrollments = Enrollment.objects.filter(
             subscription=self.subscription,
             time__gte=self.time - timezone.timedelta(hours=1),

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import CustomUser
 from rest_framework import serializers
 from .models import CustomUser
-from .utils import generate_random_password  # Импортируем функцию генерации пароля
+from .utils import generate_random_password  
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,7 +13,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.phone_number = validated_data.get('phone_number', instance.phone_number)
-        instance.iin = validated_data.get('iin', instance.iin)  # Обновление ИИН
+        instance.iin = validated_data.get('iin', instance.iin)  
         instance.role = validated_data.get('role', instance.role)
 
         instance.save()
@@ -25,17 +25,16 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role')  # Добавление ИИН
+        fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role')  
 
     def create(self, validated_data):
-        # Если пароль не передан, генерируем случайный пароль
         password = validated_data.get('password') or generate_random_password()
         user = CustomUser.objects.create_user(
             email=validated_data['email'],
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
             phone_number=validated_data['phone_number'],
-            iin=validated_data['iin'],  # Добавление ИИН
+            iin=validated_data['iin'],  
             password=password,
             role=validated_data['role'],
         )
@@ -45,5 +44,5 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ('id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'role')  # Добавление ИИН
+        fields = ('id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'role')  
 

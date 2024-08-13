@@ -107,11 +107,9 @@ def confirm_attendance(request):
     except (json.JSONDecodeError, KeyError) as e:
         return Response({'error': f'Invalid QR code data: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if 'subscriptions' key is present in the data
     if 'subscriptions' not in data:
         return Response({'error': 'No subscriptions data found in the QR code'}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Find the matching subscription
+    
     subscriptions = Subscription.objects.filter(
         user=user,
         center=center,
