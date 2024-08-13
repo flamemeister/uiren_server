@@ -33,6 +33,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     phone_number = models.CharField(max_length=15)
+    iin = models.CharField(max_length=12, unique=True, null=True, blank=True)
     role = models.CharField(max_length=5, choices=ROLE_CHOICES, default='USER')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -41,7 +42,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number']
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number', 'iin']  # Добавление ИИН в обязательные поля
 
     def __str__(self):
         return self.email
+

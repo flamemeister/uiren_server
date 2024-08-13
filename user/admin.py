@@ -7,11 +7,11 @@ class UserAdmin(BaseUserAdmin):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
 
-    list_display = ('email', 'first_name', 'last_name', 'phone_number', 'role', 'is_staff')
+    list_display = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'role', 'is_staff')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'role')
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'phone_number')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'phone_number', 'iin')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
         ('Role', {'fields': ('role',)}),
@@ -19,10 +19,10 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'first_name', 'last_name', 'phone_number', 'password1', 'password2', 'role', 'is_active', 'is_staff', 'is_superuser'),
+            'fields': ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password1', 'password2', 'role', 'is_active', 'is_staff', 'is_superuser'),
         }),
     )
-    search_fields = ('email', 'first_name', 'last_name', 'phone_number')
+    search_fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin')
     ordering = ('email',)
     filter_horizontal = ('groups', 'user_permissions',)
 
