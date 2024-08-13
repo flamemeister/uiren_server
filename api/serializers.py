@@ -8,7 +8,7 @@ class CenterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Center
-        fields = ['id', 'name', 'description', 'location', 'sections', 'qr_code_url', 'link']
+        fields = ['id', 'name', 'description', 'location', 'latitude', 'longitude', 'sections', 'qr_code_url', 'link']
 
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:

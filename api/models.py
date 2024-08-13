@@ -6,6 +6,8 @@ import io
 from django.core.files.base import ContentFile
 import json
 from user.models import CustomUser
+from geopy.geocoders import GoogleV3
+from django.core.exceptions import ValidationError
 
 def generate_qr_code(data):
     qr = qrcode.QRCode(
@@ -26,6 +28,8 @@ class Center(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     location = models.CharField(max_length=255)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
     link = models.CharField(max_length=200, blank=True, null=True)
 
@@ -33,10 +37,18 @@ class Center(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        creating = self.pk is None
+        if not self.latitude or not self.longitude:
+            geolocator = GoogleV3(api_key='AIzaSyCN-x4jF1BZ9UoWD144d4vH4ocal-EDz5k')
+            location = geolocator.geocode(self.location)
+            if location:
+                self.latitude = location.latitude
+                self.longitude = location.longitude
+            else:
+                raise ValidationError('Не удалось преобразовать адрес в координаты.')
+
         super(Center, self).save(*args, **kwargs)
 
-        if creating and not self.qr_code:
+        if not self.qr_code:
             subscriptions = Subscription.objects.filter(center=self)
 
             data = {
