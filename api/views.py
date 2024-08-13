@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
 from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
+import json
+
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
@@ -93,14 +95,33 @@ def confirm_attendance(request):
     if qr_code_data is None:
         return Response({'error': 'QR code data not provided'}, status=status.HTTP_400_BAD_REQUEST)
 
-    center = get_object_or_404(Center, id=qr_code_data)
-    user = request.user
+    try:
+        data = json.loads(qr_code_data)
+        center_id = data.get('center_id')
+        center = get_object_or_404(Center, id=center_id)
+        user = request.user
+    except (json.JSONDecodeError, KeyError) as e:
+        return Response({'error': f'Invalid QR code data: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-    subscriptions = Subscription.objects.filter(user=user, center=center)
+    # Check if 'subscriptions' key is present in the data
+    if 'subscriptions' not in data:
+        return Response({'error': 'No subscriptions data found in the QR code'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Find the matching subscription
+    subscriptions = Subscription.objects.filter(
+        user=user,
+        center=center,
+        id__in=[s['subscription_id'] for s in data['subscriptions']]
+    )
     if not subscriptions.exists():
         return Response({'error': 'No active subscription found for this center'}, status=status.HTTP_400_BAD_REQUEST)
 
-    enrollment = Enrollment.objects.filter(user=user, section__center=center, confirmed=False).first()
+    enrollment = Enrollment.objects.filter(
+        user=user,
+        section__center=center,
+        confirmed=False,
+        subscription__in=subscriptions
+    ).first()
     if not enrollment:
         return Response({'error': 'No active enrollment found for this center'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -109,6 +130,8 @@ def confirm_attendance(request):
     enrollment.save()
 
     return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
+
+
 
 
 

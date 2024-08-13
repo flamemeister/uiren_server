@@ -15,11 +15,12 @@ class ScheduleSerializer(serializers.ModelSerializer):
         fields = ['id', 'center', 'section', 'day_of_week', 'start_time', 'end_time']
 
 class SectionSerializer(serializers.ModelSerializer):
-    schedules = ScheduleSerializer(many=True, read_only=True, source='schedules')
+    schedules = ScheduleSerializer(many=True, read_only=True)
 
     class Meta:
         model = Section
         fields = ['id', 'name', 'center', 'category', 'schedules', 'available_times']
+
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:

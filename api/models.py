@@ -36,14 +36,30 @@ class Center(models.Model):
         super(Center, self).save(*args, **kwargs)
 
         if creating and not self.qr_code:
+            subscriptions = Subscription.objects.filter(center=self)
+
             data = {
                 'center_id': self.id,
                 'center_name': self.name,
+                'subscriptions': [
+                    {
+                        'subscription_id': subscription.id,
+                        'user_id': subscription.user.id,
+                    }
+                    for subscription in subscriptions
+                ],
                 'sections': list(self.sections.values('id', 'name'))
             }
+
+            # Добавление ID подписки к QR-коду
+            if subscriptions.exists():
+                data['subscription_id'] = subscriptions.first().id
+
             qr_code_file = generate_qr_code(json.dumps(data))
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             self.save(update_fields=['qr_code'])
+
+
 
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)
