@@ -167,6 +167,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://192.168.0.16:5173",
 ]
 
 MEDIA_URL = '/media/'
