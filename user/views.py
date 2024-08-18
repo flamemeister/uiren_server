@@ -98,10 +98,14 @@ class PasswordResetConfirmView(generics.GenericAPIView):
     serializer_class = PasswordResetConfirmSerializer
 
     def post(self, request, *args, **kwargs):
+        request.data['uid'] = request.query_params.get('uid')
+        request.data['token'] = request.query_params.get('token')
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"detail": "Пароль успешно сброшен."})
+
 
 
 
