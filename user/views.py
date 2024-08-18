@@ -2,6 +2,7 @@ from rest_framework import generics, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from .models import CustomUser
 from .serializers import CustomUserSerializer, RegisterSerializer, UserDetailSerializer
+from .serializers import PasswordResetConfirmSerializer
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -77,4 +78,30 @@ class VerifyEmailView(generics.GenericAPIView):
             return Response({'detail': 'Аккаунт успешно подтвержден.'})
         else:
             return Response({'error': 'Неверный токен'}, status=400)
+
+from rest_framework import generics
+from rest_framework.permissions import AllowAny
+from .serializers import PasswordResetRequestSerializer
+
+class PasswordResetRequestView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Ссылка для сброса пароля отправлена на вашу почту."})
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Пароль успешно сброшен."})
+
+
 

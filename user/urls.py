@@ -4,7 +4,7 @@ from .views import UserViewSet, UserByTokenView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import UserProfileView
 from .views import VerifyEmailView
-
+from .views import PasswordResetRequestView, PasswordResetConfirmView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -16,7 +16,8 @@ urlpatterns = [
     path('user/', UserByTokenView.as_view(), name='user_by_token'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
     path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
-
+    path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
+    path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     path('', include(router.urls)),
 ]
