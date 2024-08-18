@@ -46,3 +46,35 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+    
+from django.utils.http import urlsafe_base64_decode
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.contrib.auth.tokens import default_token_generator
+
+User = get_user_model()
+
+class VerifyEmailView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        uid = request.query_params.get('uid')
+        token = request.query_params.get('token')
+
+        try:
+            user_id = urlsafe_base64_decode(uid).decode()
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'error': 'Неверный идентификатор пользователя'}, status=400)
+
+        if default_token_generator.check_token(user, token):
+            user.is_verified = True
+            user.is_active = True
+            user.save()
+            return Response({'detail': 'Аккаунт успешно подтвержден.'})
+        else:
+            return Response({'error': 'Неверный токен'}, status=400)
+

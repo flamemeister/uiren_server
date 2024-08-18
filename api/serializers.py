@@ -25,7 +25,7 @@ class SectionSerializer(serializers.ModelSerializer):
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     iin = serializers.CharField(source='user.iin')
-    password = serializers.CharField(source='user.password', write_only=True)  # Включение пароля
+    password = serializers.CharField(source='user.password', write_only=True)  
 
     class Meta:
         model = Subscription

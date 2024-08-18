@@ -37,6 +37,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(max_length=5, choices=ROLE_CHOICES, default='USER')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = CustomUserManager()

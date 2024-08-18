@@ -2,7 +2,9 @@ from rest_framework import serializers
 from .models import CustomUser
 from rest_framework import serializers
 from .models import CustomUser
-from .utils import generate_random_password  
+from .utils import generate_random_password 
+from .utils import send_verification_email
+
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,7 +27,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role')  
+        fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role')
 
     def create(self, validated_data):
         password = validated_data.get('password') or generate_random_password()
@@ -34,11 +36,16 @@ class RegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
             phone_number=validated_data['phone_number'],
-            iin=validated_data['iin'],  
+            iin=validated_data['iin'],
             password=password,
             role=validated_data['role'],
+            is_active=False,  # Учетная запись неактивна до подтверждения
         )
+        
+        request = self.context.get('request')
+        send_verification_email(user, request)  # Отправка письма с подтверждением
         return user
+
 
 
 class UserDetailSerializer(serializers.ModelSerializer):

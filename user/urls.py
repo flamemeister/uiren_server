@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import UserViewSet, UserByTokenView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import UserProfileView
+from .views import VerifyEmailView
 
 
 router = DefaultRouter()
@@ -14,6 +15,8 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('user/', UserByTokenView.as_view(), name='user_by_token'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+
 
     path('', include(router.urls)),
 ]
