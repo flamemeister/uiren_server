@@ -12,7 +12,7 @@ def generate_random_password(length=8):
 def send_verification_email(user, request):
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    verification_link = f"{request.build_absolute_uri('/verify-email/')}?uid={uid}&token={token}"
+    verification_link = f"{request.build_absolute_uri('/user/verify-email/')}?uid={uid}&token={token}"
     
     send_mail(
         subject="Подтверждение регистрации",
@@ -20,3 +20,4 @@ def send_verification_email(user, request):
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
     )
+
