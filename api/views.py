@@ -2,11 +2,17 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory, Payment
 from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
 import json
 from user.models import CustomUser
-
+from django.shortcuts import redirect
+from django.utils import timezone
+import uuid
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+import requests
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
@@ -26,7 +32,6 @@ class SectionViewSet(viewsets.ModelViewSet):
         if category:
             queryset = queryset.filter(category__name=category)
         return queryset
-
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
@@ -133,20 +138,10 @@ def confirm_attendance(request):
 
     return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
 
-from django.shortcuts import redirect
-from django.utils import timezone
-from .models import Payment
-import uuid
-from django.views.decorators.csrf import csrf_exempt
-import json
-
-from django.http import JsonResponse
-
 @csrf_exempt
 def initiate_payment(request):
     if request.method == 'POST':
         try:
-            # Чтение и парсинг тела запроса как JSON
             data = json.loads(request.body)
             student_id = data.get('student_id')
             center_id = data.get('center_id')
@@ -156,7 +151,6 @@ def initiate_payment(request):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-        # Отладочный вывод для проверки
         print(f"Received amount: {amount}, type: {type(amount)}")
 
         if not amount:
@@ -178,50 +172,35 @@ def initiate_payment(request):
             status='pending'
         )
 
-        # Редирект на Kaspi.kz
-        # Формирование URL для редиректа
         kaspi_url = f"https://kaspi.kz/pay/_gate?action=service_with_subservice&service_id=3025&subservice_id=15078&region_id=18&txn_id={txn_id}&amount={amount}&center_id={center_id}&student_id={student_id}"
         
-        # Логирование URL для проверки
         print(f"Redirecting to: {kaspi_url}")
 
-        # Редирект
         return redirect(kaspi_url)
     
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-
-
-
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
-from .models import Payment
-
 def handle_kaspi_response(request):
-    # Получение данных от Kaspi.kz
     txn_id = request.GET.get('txn_id')
     prv_txn_id = request.GET.get('prv_txn_id')
     result = request.GET.get('result')
     amount = request.GET.get('amount')
 
-    # Обновление статуса платежа в базе данных
-    payment = get_object_or_404(Payment, txn_id=txn_id)
+    try:
+        payment = Payment.objects.get(txn_id=txn_id)
+    except Payment.DoesNotExist:
+        return JsonResponse({'error': 'Payment not found'}, status=404)
 
-    if result == '0':  # Успешная оплата
+    if result == '0':  
         payment.status = 'completed'
     else:
         payment.status = 'failed'
     
     payment.save()
-
+    
     return JsonResponse({'message': 'Payment status updated successfully'})
 
-import requests
-
 def check_account_status(account_id):
-    # Формирование запроса для проверки состояния пользователя
     kaspi_url = f"https://example.com/payment_app.cgi?command=check&account={account_id}&sum=0.00"
     
     response = requests.get(kaspi_url)
@@ -229,8 +208,8 @@ def check_account_status(account_id):
     if response.status_code == 200:
         data = response.json()
         if data.get('result') == '0':
-            return True  # Аккаунт доступен для пополнения
-    return False  # Аккаунт не найден или недоступен
+            return True  
+    return False  
 
 
 

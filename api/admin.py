@@ -14,7 +14,7 @@ class ScheduleInline(admin.TabularInline):
 class CenterAdmin(admin.ModelAdmin):
     list_display = ('name', 'location')
     search_fields = ('name', 'location')
-    inlines = [SectionInline, ScheduleInline]
+    filter_horizontal = ('sections',)  # Используем виджет для работы с ManyToManyField
 
 @admin.register(SectionCategory)
 class SectionCategoryAdmin(admin.ModelAdmin):
@@ -23,10 +23,15 @@ class SectionCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
-    list_display = ('name', 'center', 'category')
-    search_fields = ('name', 'center__name', 'category__name')
+    list_display = ('name', 'get_centers', 'category')
+    search_fields = ('name', 'category__name')
     list_filter = ('category',)
-    inlines = [ScheduleInline]
+
+    def get_centers(self, obj):
+        return ", ".join([center.name for center in obj.centers.all()])
+    
+    get_centers.short_description = 'Centers'
+
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):

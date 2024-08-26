@@ -9,6 +9,7 @@ from user.models import CustomUser
 from geopy.geocoders import GoogleV3
 from django.core.exceptions import ValidationError
 
+
 def generate_qr_code(data):
     qr = qrcode.QRCode(
         version=1,
@@ -24,12 +25,31 @@ def generate_qr_code(data):
     image_stream = buf.getvalue()
     return ContentFile(image_stream)
 
+class SectionCategory(models.Model):
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+class Section(models.Model):
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
+    available_times = models.JSONField(default=list, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.center.save()  
+
 class Center(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     location = models.CharField(max_length=255)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    sections = models.ManyToManyField(Section, related_name='centers')  # Множество секций, связанных с центром
     qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
     link = models.CharField(max_length=200, blank=True, null=True)
 
@@ -72,24 +92,7 @@ class Center(models.Model):
             self.save(update_fields=['qr_code'])
 
 
-class SectionCategory(models.Model):
-    name = models.CharField(max_length=255)
 
-    def __str__(self):
-        return self.name
-
-class Section(models.Model):
-    center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
-    available_times = models.JSONField(default=list, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.center.save()  
 
 class Schedule(models.Model):
     center = models.ForeignKey(Center, related_name='schedules', on_delete=models.CASCADE)
