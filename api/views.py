@@ -133,6 +133,109 @@ def confirm_attendance(request):
 
     return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
 
+from django.shortcuts import redirect
+from django.utils import timezone
+from .models import Payment
+import uuid
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+from django.http import JsonResponse
+
+@csrf_exempt
+def initiate_payment(request):
+    if request.method == 'POST':
+        try:
+            # Чтение и парсинг тела запроса как JSON
+            data = json.loads(request.body)
+            student_id = data.get('student_id')
+            center_id = data.get('center_id')
+            section_id = data.get('section_id')
+            payment_period = data.get('payment_period')
+            amount = data.get('amount')
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+        # Отладочный вывод для проверки
+        print(f"Received amount: {amount}, type: {type(amount)}")
+
+        if not amount:
+            return JsonResponse({'error': 'Amount is required'}, status=400)
+        
+        try:
+            amount = float(amount)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid amount format'}, status=400)
+
+        txn_id = str(uuid.uuid4())
+        payment = Payment.objects.create(
+            txn_id=txn_id,
+            student_id=student_id,
+            center_id=center_id,
+            section_id=section_id,
+            payment_period=payment_period,
+            amount=amount,
+            status='pending'
+        )
+
+        # Редирект на Kaspi.kz
+        # Формирование URL для редиректа
+        kaspi_url = f"https://kaspi.kz/pay/_gate?action=service_with_subservice&service_id=3025&subservice_id=15078&region_id=18&txn_id={txn_id}&amount={amount}&center_id={center_id}&student_id={student_id}"
+        
+        # Логирование URL для проверки
+        print(f"Redirecting to: {kaspi_url}")
+
+        # Редирект
+        return redirect(kaspi_url)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+
+
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from .models import Payment
+
+def handle_kaspi_response(request):
+    # Получение данных от Kaspi.kz
+    txn_id = request.GET.get('txn_id')
+    prv_txn_id = request.GET.get('prv_txn_id')
+    result = request.GET.get('result')
+    amount = request.GET.get('amount')
+
+    # Обновление статуса платежа в базе данных
+    payment = get_object_or_404(Payment, txn_id=txn_id)
+
+    if result == '0':  # Успешная оплата
+        payment.status = 'completed'
+    else:
+        payment.status = 'failed'
+    
+    payment.save()
+
+    return JsonResponse({'message': 'Payment status updated successfully'})
+
+import requests
+
+def check_account_status(account_id):
+    # Формирование запроса для проверки состояния пользователя
+    kaspi_url = f"https://example.com/payment_app.cgi?command=check&account={account_id}&sum=0.00"
+    
+    response = requests.get(kaspi_url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('result') == '0':
+            return True  # Аккаунт доступен для пополнения
+    return False  # Аккаунт не найден или недоступен
+
+
+
+
+
 
 
 
