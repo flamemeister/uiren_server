@@ -12,9 +12,11 @@ from django.utils.http import urlsafe_base64_decode
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
+    children = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'date_joined', 'is_active', 'is_staff', 'role']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'date_joined', 'is_active', 'is_staff', 'role', 'children']
 
     def update(self, instance, validated_data):
         instance.first_name = validated_data.get('first_name', instance.first_name)
@@ -29,13 +31,15 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, default=generate_random_password, required=False)
+    parent_id = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role')
+        fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password', 'role', 'parent_id')
 
     def create(self, validated_data):
-        password = validated_data.get('password') or generate_random_password()
+        parent_id = validated_data.pop('parent_id', None)
+        password = validated_data.pop('password')
         user = CustomUser.objects.create_user(
             email=validated_data['email'],
             first_name=validated_data['first_name'],
@@ -44,11 +48,14 @@ class RegisterSerializer(serializers.ModelSerializer):
             iin=validated_data['iin'],
             password=password,
             role=validated_data['role'],
-            is_active=False,  # Учетная запись неактивна до подтверждения
+            is_active=True,
         )
-        
-        request = self.context.get('request')
-        send_verification_email(user, request)  # Отправка письма с подтверждением
+
+        if parent_id:
+            parent = CustomUser.objects.get(id=parent_id)
+            user.parent = parent
+            user.save()
+
         return user
 
 class UserDetailSerializer(serializers.ModelSerializer):

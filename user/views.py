@@ -8,10 +8,17 @@ class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+    
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import CustomUser
+from .serializers import CustomUserSerializer, RegisterSerializer, UserDetailSerializer
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework import permissions
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
-    # permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
@@ -21,13 +28,33 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             return CustomUserSerializer
 
-    # def get_permissions(self):
-    #     if self.action in ['list', 'retrieve']:
-    #         return [IsAuthenticated()]
-    #     elif self.action == 'create':
-    #         return [IsAuthenticated()]
-    #     else:
-    #         return [IsAdminUser()]
+    def get_permissions(self):
+        if self.action in ['create', 'password_reset', 'register']:
+            return [permissions.AllowAny()]
+        elif self.action in ['add_child']:
+            return [IsAuthenticated()]
+        else:
+            return [IsAdminUser()]
+
+    @action(detail=True, methods=['post'], url_path='add-child', permission_classes=[IsAuthenticated])
+    def add_child(self, request, pk=None):
+        parent = self.get_object()
+        if parent.role != 'ADMIN':
+            return Response({'error': 'Only parents can add children.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        child_id = request.data.get('child_id')
+        if not child_id:
+            return Response({'error': 'child_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            child = CustomUser.objects.get(id=child_id)
+            if child.parent is not None:
+                return Response({'error': 'This child is already linked to a parent.'}, status=status.HTTP_400_BAD_REQUEST)
+            child.parent = parent
+            child.save()
+            return Response({'status': 'Child added successfully'}, status=status.HTTP_200_OK)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'Child not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserByTokenView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
