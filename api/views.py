@@ -33,9 +33,64 @@ class SectionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(category__name=category)
         return queryset
 
+# your_app/views.py
+
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
+from .models import Subscription
+from .serializers import SubscriptionSerializer
+from rest_framework.response import Response
+from rest_framework.decorators import action
+
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return Subscription.objects.filter(purchased_by=user)
+        return Subscription.objects.none()
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        parent = request.user
+
+        # Проверяем, что пользователь - родитель
+        if parent.role != 'ADMIN':
+            return Response({'error': 'Only parents can purchase subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Получаем ID ребенка
+        child_id = data.get('user')
+        try:
+            child = CustomUser.objects.get(id=child_id, parent=parent)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'Child not found or does not belong to you.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Создаем абонемент
+        subscription = Subscription.objects.create(
+            purchased_by=parent,
+            user=child,
+            center=data.get('center'),
+            section=data.get('section'),
+            type=data.get('type'),
+            name=data.get('name'),
+            expiration_date=timezone.now() + timezone.timedelta(days=30)  # Пример срока действия
+        )
+
+        serializer = self.get_serializer(subscription)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='deactivate', permission_classes=[IsAuthenticated])
+    def deactivate_subscription(self, request, pk=None):
+        subscription = self.get_object()
+        if subscription.purchased_by != request.user:
+            return Response({'error': 'You do not have permission to deactivate this subscription.'}, status=status.HTTP_403_FORBIDDEN)
+        subscription.is_active = False
+        subscription.save()
+        return Response({'status': 'Subscription deactivated.'}, status=status.HTTP_200_OK)
+
 
     @action(detail=False, methods=['get'])
     def my_subscriptions(self, request):

@@ -118,7 +118,7 @@ class Subscription(models.Model):
         ('10 уроков', '10 уроков'),
         ('12 уроков', '12 уроков')
     )
-
+    purchased_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='purchased_subscriptions', null=True, blank=True)
     user = models.ForeignKey(CustomUser, to_field='iin', db_column='iin', related_name='subscriptions', on_delete=models.CASCADE)
     center = models.ForeignKey(Center, related_name='subscriptions', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE, null=True, blank=True)
@@ -129,7 +129,7 @@ class Subscription(models.Model):
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.name} - {self.type}"
+        return f"{self.name} - {self.type} ({self.user.email})"
 
 class Enrollment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='enrollments', on_delete=models.CASCADE)

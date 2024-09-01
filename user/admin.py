@@ -11,7 +11,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'role')
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'phone_number', 'iin')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'phone_number', 'iin', 'parent')}),  # Добавляем поле parent
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
         ('Role', {'fields': ('role',)}),

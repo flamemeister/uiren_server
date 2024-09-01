@@ -29,8 +29,11 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subscription
-        fields = ['id', 'iin', 'password', 'center', 'section', 'type', 'name', 'activation_date', 'expiration_date', 'is_active']
-
+        fields = [
+            'id', 'purchased_by', 'user', 'center', 'section', 
+            'type', 'name', 'activation_date', 'expiration_date', 'is_active'
+        ]
+        read_only_fields = ['purchased_by', 'activation_date', 'is_active']
 
     def create(self, validated_data):
         iin = validated_data.pop('user')['iin']
