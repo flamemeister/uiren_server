@@ -3,12 +3,25 @@ from .models import Center, Section, Subscription, Enrollment, Feedback, Section
 from user.models import CustomUser
 
 class CenterSerializer(serializers.ModelSerializer):
-    sections = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
-    qr_code_url = serializers.ImageField(source='qr_code', read_only=True)
+    sections = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all(), many=True)
 
     class Meta:
         model = Center
-        fields = ['id', 'name', 'description', 'location', 'latitude', 'longitude', 'sections', 'qr_code_url', 'link']
+        fields = ['id', 'name', 'description', 'location', 'latitude', 'longitude', 'sections', 'link']
+
+    def create(self, validated_data):
+        sections = validated_data.pop('sections', [])
+        center = Center.objects.create(**validated_data)
+        center.sections.set(sections)
+        return center
+
+    def update(self, instance, validated_data):
+        sections = validated_data.pop('sections', None)
+        instance = super().update(instance, validated_data)
+        if sections is not None:
+            instance.sections.set(sections)
+        return instance
+
 
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,7 +34,6 @@ class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = ['id', 'name' , 'category', 'schedules', 'available_times']
-
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     iin = serializers.CharField(source='user.iin', required=False)
