@@ -31,6 +31,8 @@ static/
 # Migrations
 **/migrations/*.py
 **/migrations/*.pyc
+user/migrations/
+api/migrations
 
 # Local settings
 local_settings.py
