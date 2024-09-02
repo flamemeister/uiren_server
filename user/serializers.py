@@ -10,7 +10,6 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils.http import urlsafe_base64_decode
 
-
 class CustomUserSerializer(serializers.ModelSerializer):
     children = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 

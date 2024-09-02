@@ -7,12 +7,13 @@ from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerial
 import json
 from user.models import CustomUser
 from django.shortcuts import redirect
-from django.utils import timezone
 import uuid
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 import requests
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
@@ -33,15 +34,6 @@ class SectionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(category__name=category)
         return queryset
 
-# your_app/views.py
-
-from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
-from .models import Subscription
-from .serializers import SubscriptionSerializer
-from rest_framework.response import Response
-from rest_framework.decorators import action
-
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
@@ -57,18 +49,15 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         data = request.data
         parent = request.user
 
-        # Проверяем, что пользователь - родитель
         if parent.role != 'ADMIN':
             return Response({'error': 'Only parents can purchase subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Получаем ID ребенка
         child_id = data.get('user')
         try:
             child = CustomUser.objects.get(id=child_id, parent=parent)
         except CustomUser.DoesNotExist:
             return Response({'error': 'Child not found or does not belong to you.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Создаем абонемент
         subscription = Subscription.objects.create(
             purchased_by=parent,
             user=child,
@@ -143,12 +132,6 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
     serializer_class = FeedbackSerializer
-
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Center, Enrollment, Subscription
 
 @api_view(['POST'])
 def confirm_attendance(request):

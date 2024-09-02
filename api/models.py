@@ -9,7 +9,6 @@ from user.models import CustomUser
 from geopy.geocoders import GoogleV3
 from django.core.exceptions import ValidationError
 
-
 def generate_qr_code(data):
     qr = qrcode.QRCode(
         version=1,

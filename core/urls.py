@@ -5,7 +5,7 @@ from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('user/', include('user.urls')),  # Adjust based on your actual app names
+    path('user/', include('user.urls')),  
     path('api/', include('api.urls')),
 
 ]

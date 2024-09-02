@@ -14,7 +14,7 @@ class ScheduleInline(admin.TabularInline):
 class CenterAdmin(admin.ModelAdmin):
     list_display = ('name', 'location')
     search_fields = ('name', 'location')
-    filter_horizontal = ('sections',)  # Используем виджет для работы с ManyToManyField
+    filter_horizontal = ('sections',)  
 
 @admin.register(SectionCategory)
 class SectionCategoryAdmin(admin.ModelAdmin):
