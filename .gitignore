@@ -42,6 +42,7 @@ local_settings.py
 # Exclude __pycache__ only in user and api directories
 user/__pycache__/
 api/__pycache__/
+core/__pycache__/
 
 # Exclude other common __pycache__ and Python-related files
 *.pyc
