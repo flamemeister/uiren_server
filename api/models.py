@@ -33,7 +33,6 @@ class SectionCategory(models.Model):
 class Section(models.Model):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
-    available_times = models.JSONField(default=list, null=True, blank=True)
 
     def __str__(self):
         return self.name

@@ -22,7 +22,6 @@ class CenterSerializer(serializers.ModelSerializer):
             instance.sections.set(sections)
         return instance
 
-
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Schedule
@@ -33,7 +32,7 @@ class SectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Section
-        fields = ['id', 'name' , 'category', 'schedules', 'available_times']
+        fields = ['id', 'name' , 'category', 'schedules']
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     iin = serializers.CharField(source='user.iin', required=False)
@@ -56,7 +55,6 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             user = self.context['request'].user
         subscription = Subscription.objects.create(user=user, **validated_data)
         return subscription
-
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
