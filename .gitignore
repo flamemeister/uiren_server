@@ -8,3 +8,5 @@ venv.bak/
 venv/
 ENV/
 db.sqlite3
+**/migrations/*.py
+**/migrations/*.pyc

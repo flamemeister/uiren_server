@@ -41,7 +41,8 @@ class Section(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.center.save()  
+        for center in self.centers.all():
+            center.save()
 
 class Center(models.Model):
     name = models.CharField(max_length=255)
