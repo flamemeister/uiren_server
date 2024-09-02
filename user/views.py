@@ -1,21 +1,18 @@
-from rest_framework import generics, viewsets
+from rest_framework import generics, viewsets, permissions, status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from .models import CustomUser
-from .serializers import CustomUserSerializer, RegisterSerializer, UserDetailSerializer
-from .serializers import PasswordResetConfirmSerializer
+from .serializers import CustomUserSerializer, RegisterSerializer, UserDetailSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils.http import urlsafe_base64_decode
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.contrib.auth.tokens import default_token_generator
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
-    
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from .models import CustomUser
-from .serializers import CustomUserSerializer, RegisterSerializer, UserDetailSerializer
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework import permissions
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
@@ -32,11 +29,11 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'password_reset', 'register']:
             return [permissions.AllowAny()]
         elif self.action in ['add_child']:
-            return [IsAuthenticated()]
+            return [AllowAny()]  # Временно заменено на AllowAny
         else:
-            return [IsAdminUser()]
+            return [AllowAny()]  # Временно заменено на AllowAny
 
-    @action(detail=True, methods=['post'], url_path='add-child', permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], url_path='add-child', permission_classes=[AllowAny])  # Временно заменено на AllowAny
     def add_child(self, request, pk=None):
         parent = self.get_object()
         if parent.role != 'ADMIN':
@@ -57,32 +54,20 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Child not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserByTokenView(generics.RetrieveAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Временно заменено на AllowAny
     serializer_class = UserDetailSerializer
 
     def get_object(self):
         return self.request.user
 
-from rest_framework import generics, permissions
-from .models import CustomUser
-from .serializers import CustomUserSerializer
-
 class UserProfileView(generics.RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]  # Временно заменено на AllowAny
 
     def get_object(self):
         return self.request.user
     
-from django.utils.http import urlsafe_base64_decode
-from rest_framework import generics
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
-from django.contrib.auth.tokens import default_token_generator
-
 User = get_user_model()
 
 class VerifyEmailView(generics.GenericAPIView):
@@ -106,10 +91,6 @@ class VerifyEmailView(generics.GenericAPIView):
         else:
             return Response({'error': 'Неверный токен'}, status=400)
 
-from rest_framework import generics
-from rest_framework.permissions import AllowAny
-from .serializers import PasswordResetRequestSerializer
-
 class PasswordResetRequestView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
@@ -132,7 +113,3 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"detail": "Пароль успешно сброшен."})
-
-
-
-
