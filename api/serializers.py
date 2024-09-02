@@ -35,13 +35,11 @@ class SectionSerializer(serializers.ModelSerializer):
         fields = ['id', 'name' , 'category', 'schedules']
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    iin = serializers.CharField(source='user.iin', required=False)
-    password = serializers.CharField(source='user.password', write_only=True, required=False)  
 
     class Meta:
         model = Subscription
         fields = [
-            'id', 'purchased_by', 'user', 'iin', 'password', 'center', 'section', 
+            'id', 'purchased_by', 'user', 'center', 'section', 
             'type', 'name', 'activation_date', 'expiration_date', 'is_active'
         ]
         read_only_fields = ['purchased_by', 'activation_date', 'is_active']

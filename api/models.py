@@ -115,7 +115,7 @@ class Subscription(models.Model):
         ('12 уроков', '12 уроков')
     )
     purchased_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='purchased_subscriptions', null=True, blank=True)
-    user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE) 
+    user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)  # Связь по ID пользователя
     center = models.ForeignKey(Center, related_name='subscriptions', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE, null=True, blank=True)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
