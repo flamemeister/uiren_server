@@ -32,7 +32,6 @@ class SectionAdmin(admin.ModelAdmin):
     
     get_centers.short_description = 'Centers'
 
-
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
     list_display = ('center', 'section', 'day_of_week', 'start_time', 'end_time')

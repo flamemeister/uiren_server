@@ -29,11 +29,11 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'password_reset', 'register']:
             return [permissions.AllowAny()]
         elif self.action in ['add_child']:
-            return [AllowAny()]  # Временно заменено на AllowAny
+            return [AllowAny()]  
         else:
-            return [AllowAny()]  # Временно заменено на AllowAny
+            return [AllowAny()]  
 
-    @action(detail=True, methods=['post'], url_path='add-child', permission_classes=[AllowAny])  # Временно заменено на AllowAny
+    @action(detail=True, methods=['post'], url_path='add-child', permission_classes=[AllowAny])  
     def add_child(self, request, pk=None):
         parent = self.get_object()
         if parent.role != 'ADMIN':
@@ -54,7 +54,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Child not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserByTokenView(generics.RetrieveAPIView):
-    permission_classes = [AllowAny]  # Временно заменено на AllowAny
+    permission_classes = [AllowAny]  
     serializer_class = UserDetailSerializer
 
     def get_object(self):
@@ -63,7 +63,7 @@ class UserByTokenView(generics.RetrieveAPIView):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = [AllowAny]  # Временно заменено на AllowAny
+    permission_classes = [AllowAny]  
 
     def get_object(self):
         return self.request.user
@@ -85,7 +85,7 @@ class VerifyEmailView(generics.GenericAPIView):
 
         if default_token_generator.check_token(user, token):
             user.is_verified = True
-            user.is_active = True
+            user.is_active = True  # Активируем пользователя
             user.save()
             return Response({'detail': 'Аккаунт успешно подтвержден.'})
         else:

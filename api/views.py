@@ -37,32 +37,45 @@ class SectionViewSet(viewsets.ModelViewSet):
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.role == 'ADMIN':
-            return Subscription.objects.filter(purchased_by=user)
-        return Subscription.objects.none()
+    permission_classes = [IsAuthenticated]  # Любой аутентифицированный пользователь может покупать абонементы
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        parent = request.user
-
-        if parent.role != 'ADMIN':
-            return Response({'error': 'Only parents can purchase subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
+        buyer = request.user  # Пользователь, совершающий покупку
 
         child_id = data.get('user')
         try:
-            child = CustomUser.objects.get(id=child_id, parent=parent)
+            if child_id:
+                # Если указано child_id, находим ребенка
+                child = CustomUser.objects.get(id=child_id)
+            else:
+                # Если child_id не указан, покупатель сам для себя
+                child = buyer
         except CustomUser.DoesNotExist:
-            return Response({'error': 'Child not found or does not belong to you.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Child not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Находим объект Center по переданному ID
+        center_id = data.get('center')
+        try:
+            center = Center.objects.get(id=center_id)
+        except Center.DoesNotExist:
+            return Response({'error': 'Center not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Находим объект Section по переданному ID (если указано)
+        section_id = data.get('section')
+        section = None
+        if section_id:
+            try:
+                section = Section.objects.get(id=section_id)
+            except Section.DoesNotExist:
+                return Response({'error': 'Section not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Создаем абонемент
         subscription = Subscription.objects.create(
-            purchased_by=parent,
+            purchased_by=buyer,
             user=child,
-            center=data.get('center'),
-            section=data.get('section'),
+            center=center,
+            section=section,
             type=data.get('type'),
             name=data.get('name'),
             expiration_date=timezone.now() + timezone.timedelta(days=30)  # Пример срока действия
@@ -70,6 +83,8 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(subscription)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
 
     @action(detail=True, methods=['post'], url_path='deactivate', permission_classes=[IsAuthenticated])
     def deactivate_subscription(self, request, pk=None):

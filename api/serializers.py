@@ -24,22 +24,27 @@ class SectionSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    iin = serializers.CharField(source='user.iin')
-    password = serializers.CharField(source='user.password', write_only=True)  
+    iin = serializers.CharField(source='user.iin', required=False)
+    password = serializers.CharField(source='user.password', write_only=True, required=False)  
 
     class Meta:
         model = Subscription
         fields = [
-            'id', 'purchased_by', 'user', 'center', 'section', 
+            'id', 'purchased_by', 'user', 'iin', 'password', 'center', 'section', 
             'type', 'name', 'activation_date', 'expiration_date', 'is_active'
         ]
         read_only_fields = ['purchased_by', 'activation_date', 'is_active']
 
     def create(self, validated_data):
-        iin = validated_data.pop('user')['iin']
-        user = CustomUser.objects.get(iin=iin)
+        user_data = validated_data.pop('user', {})
+        iin = user_data.get('iin')
+        if iin:
+            user = CustomUser.objects.get(iin=iin)
+        else:
+            user = self.context['request'].user
         subscription = Subscription.objects.create(user=user, **validated_data)
-        return subscriptionce
+        return subscription
+
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:

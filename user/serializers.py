@@ -47,13 +47,15 @@ class RegisterSerializer(serializers.ModelSerializer):
             iin=validated_data['iin'],
             password=password,
             role=validated_data['role'],
-            is_active=True,
+            is_active=False,  # Пользователь не активен до подтверждения
         )
 
         if parent_id:
             parent = CustomUser.objects.get(id=parent_id)
             user.parent = parent
             user.save()
+
+        send_verification_email(user, self.context['request'])
 
         return user
 

@@ -91,9 +91,6 @@ class Center(models.Model):
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             self.save(update_fields=['qr_code'])
 
-
-
-
 class Schedule(models.Model):
     center = models.ForeignKey(Center, related_name='schedules', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='schedules', on_delete=models.CASCADE)
@@ -158,7 +155,6 @@ class Enrollment(models.Model):
         ).exists()
         if overlapping_enrollments:
             raise ValidationError('There must be at least 1 hour between enrollments.')
-
 
 class Feedback(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='feedbacks', on_delete=models.CASCADE)
