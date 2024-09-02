@@ -1,12 +1,53 @@
-# Environments
+# Virtual environments
 .venv/
 venv/
 ENV/
 env/
 env.bak/
 venv.bak/
-venv/
-ENV/
+
+# Python cache files
+*.py[cod]
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.pyc
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+__pycache__/
 db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/
+.env
+
+# Migrations
 **/migrations/*.py
 **/migrations/*.pyc
+
+# Local settings
+local_settings.py
+.env
+
+# SQL dumps
+*.sql
+
+# Django stuff:
+*.pot
+*.pyc
+__pycache__/
+static/
+media/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*~
