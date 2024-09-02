@@ -39,10 +39,18 @@ local_settings.py
 # SQL dumps
 *.sql
 
+# Exclude __pycache__ only in user and api directories
+user/__pycache__/
+api/__pycache__/
+
+# Exclude other common __pycache__ and Python-related files
+*.pyc
+*.pyo
+*.pyd
+
 # Django stuff:
 *.pot
 *.pyc
-__pycache__/
 static/
 media/
 
