@@ -68,7 +68,7 @@ class Center(models.Model):
         super(Center, self).save(*args, **kwargs)
 
         if not self.qr_code:
-            subscriptions = Subscription.objects.filter(center=self)
+            subscriptions = Subscription.objects.filter(section__centers=self)
 
             data = {
                 'center_id': self.id,
@@ -89,6 +89,7 @@ class Center(models.Model):
             qr_code_file = generate_qr_code(json.dumps(data))
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             self.save(update_fields=['qr_code'])
+
 
 class Schedule(models.Model):
     center = models.ForeignKey(Center, related_name='schedules', on_delete=models.CASCADE)

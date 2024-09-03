@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
@@ -14,11 +14,29 @@ from django.shortcuts import get_object_or_404
 import requests
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.pagination import PageNumberPagination
+
+class CenterPagination(PageNumberPagination):
+    page_size = 10  # Customize as needed
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
+    pagination_class = CenterPagination
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['sections__id']  # Allow filtering by section ID
+    ordering_fields = ['name', 'location']  # Allow ordering by these fields
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        section_id = self.request.query_params.get('section', None)
+        if section_id:
+            queryset = queryset.filter(sections__id=section_id)
+        return queryset
+    
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
@@ -76,8 +94,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(subscription)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
-
     @action(detail=True, methods=['post'], url_path='deactivate', permission_classes=[IsAuthenticated])
     def deactivate_subscription(self, request, pk=None):
         subscription = self.get_object()
@@ -86,7 +102,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         subscription.is_active = False
         subscription.save()
         return Response({'status': 'Subscription deactivated.'}, status=status.HTTP_200_OK)
-
 
     @action(detail=False, methods=['get'])
     def my_subscriptions(self, request):
