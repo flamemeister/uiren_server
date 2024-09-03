@@ -18,7 +18,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 
 class CenterPagination(PageNumberPagination):
-    page_size = 10  # Customize as needed
+    page_size = 10  
     page_size_query_param = 'page_size'
     max_page_size = 100
 
@@ -27,8 +27,8 @@ class CenterViewSet(viewsets.ModelViewSet):
     serializer_class = CenterSerializer
     pagination_class = CenterPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['sections__id']  # Allow filtering by section ID
-    ordering_fields = ['name', 'location']  # Allow ordering by these fields
+    filterset_fields = ['sections__id']  
+    ordering_fields = ['name', 'location']  
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -59,20 +59,17 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        buyer = request.user  # Пользователь, совершающий покупку
+        buyer = request.user  
 
         child_id = data.get('user')
         try:
             if child_id:
-                # Если указано child_id, находим ребенка
                 child = CustomUser.objects.get(id=child_id)
             else:
-                # Если child_id не указан, покупатель сам для себя
                 child = buyer
         except CustomUser.DoesNotExist:
             return Response({'error': 'Child not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Находим объект Section по переданному ID (если указано)
         section_id = data.get('section')
         section = None
         if section_id:
@@ -81,7 +78,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             except Section.DoesNotExist:
                 return Response({'error': 'Section not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Создаем абонемент
         subscription = Subscription.objects.create(
             purchased_by=buyer,
             user=child,
