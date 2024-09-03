@@ -40,7 +40,7 @@ class ScheduleAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'user_iin', 'center', 'section', 'type', 'name')
+    list_display = ('user', 'user_iin', 'section', 'type', 'name')
     search_fields = ('user__email', 'user__iin', 'center__name', 'section__name', 'type', 'name')
 
     def user_iin(self, obj):

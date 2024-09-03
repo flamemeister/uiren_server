@@ -37,7 +37,7 @@ class SectionViewSet(viewsets.ModelViewSet):
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
-    permission_classes = [IsAuthenticated]  # Любой аутентифицированный пользователь может покупать абонементы
+    # permission_classes = [IsAuthenticated]  # Любой аутентифицированный пользователь может покупать абонементы
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -54,13 +54,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         except CustomUser.DoesNotExist:
             return Response({'error': 'Child not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Находим объект Center по переданному ID
-        center_id = data.get('center')
-        try:
-            center = Center.objects.get(id=center_id)
-        except Center.DoesNotExist:
-            return Response({'error': 'Center not found.'}, status=status.HTTP_400_BAD_REQUEST)
-
         # Находим объект Section по переданному ID (если указано)
         section_id = data.get('section')
         section = None
@@ -74,7 +67,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         subscription = Subscription.objects.create(
             purchased_by=buyer,
             user=child,
-            center=center,
             section=section,
             type=data.get('type'),
             name=data.get('name'),
@@ -263,14 +255,3 @@ def check_account_status(account_id):
         if data.get('result') == '0':
             return True  
     return False  
-
-
-
-
-
-
-
-
-
-
-
