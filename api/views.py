@@ -192,4 +192,15 @@ def confirm_attendance(request):
 
     return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
 
+MANAGER_WHATSAPP_NUMBER = '+77073478844'
+
+
+@api_view(['GET'])
+def redirect_to_whatsapp(request):
+    """Endpoint to redirect to WhatsApp chat with the manager for payment."""
+    message = "Hello, I would like to make a payment."
+    whatsapp_url = f"https://wa.me/{MANAGER_WHATSAPP_NUMBER}?text={message}"
+    
+    return redirect(whatsapp_url)
+
 
