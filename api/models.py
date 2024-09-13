@@ -163,17 +163,5 @@ class Feedback(models.Model):
     def __str__(self):
         return f"Feedback by {self.user.email} for {self.center.name}"
 
-class Payment(models.Model):
-    txn_id = models.CharField(max_length=100, unique=True)
-    student = models.ForeignKey(CustomUser, related_name='payments', on_delete=models.CASCADE)  # Внешний ключ на CustomUser
-    center = models.ForeignKey(Center, related_name='payments', on_delete=models.CASCADE)  # Внешний ключ на Center
-    section = models.ForeignKey(Section, related_name='payments', on_delete=models.CASCADE)  # Внешний ключ на Section
-    payment_period = models.CharField(max_length=50, blank=True, null=True)  # Обновление поля
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=50, default="pending")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.student.email} - {self.center.name} - {self.amount}"
 

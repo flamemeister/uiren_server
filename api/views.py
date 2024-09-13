@@ -1,19 +1,17 @@
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory, Payment
+from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
 from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
 import json
 from user.models import CustomUser
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 import uuid
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 import requests
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 
@@ -194,75 +192,4 @@ def confirm_attendance(request):
 
     return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
 
-@csrf_exempt
-def initiate_payment(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            student_id = data.get('student_id')
-            center_id = data.get('center_id')
-            section_id = data.get('section_id')
-            payment_period = data.get('payment_period')
-            amount = data.get('amount')
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-        print(f"Received amount: {amount}, type: {type(amount)}")
-
-        if not amount:
-            return JsonResponse({'error': 'Amount is required'}, status=400)
-        
-        try:
-            amount = float(amount)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid amount format'}, status=400)
-
-        txn_id = str(uuid.uuid4())
-        payment = Payment.objects.create(
-            txn_id=txn_id,
-            student_id=student_id,
-            center_id=center_id,
-            section_id=section_id,
-            payment_period=payment_period,
-            amount=amount,
-            status='pending'
-        )
-
-        kaspi_url = f"https://kaspi.kz/pay/_gate?action=service_with_subservice&service_id=3025&subservice_id=15078&region_id=18&txn_id={txn_id}&amount={amount}&center_id={center_id}&student_id={student_id}"
-        
-        print(f"Redirecting to: {kaspi_url}")
-
-        return redirect(kaspi_url)
-    
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-def handle_kaspi_response(request):
-    txn_id = request.GET.get('txn_id')
-    prv_txn_id = request.GET.get('prv_txn_id')
-    result = request.GET.get('result')
-    amount = request.GET.get('amount')
-
-    try:
-        payment = Payment.objects.get(txn_id=txn_id)
-    except Payment.DoesNotExist:
-        return JsonResponse({'error': 'Payment not found'}, status=404)
-
-    if result == '0':  
-        payment.status = 'completed'
-    else:
-        payment.status = 'failed'
-    
-    payment.save()
-    
-    return JsonResponse({'message': 'Payment status updated successfully'})
-
-def check_account_status(account_id):
-    kaspi_url = f"https://example.com/payment_app.cgi?command=check&account={account_id}&sum=0.00"
-    
-    response = requests.get(kaspi_url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data.get('result') == '0':
-            return True  
-    return False  
