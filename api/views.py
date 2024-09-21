@@ -14,15 +14,12 @@ import requests
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
-from rest_framework import viewsets, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from .models import Center
-from .pagination import CenterPagination 
+from .pagination import CenterPagination  
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
-    pagination_class = CenterPagination  # Указываем кастомный класс пагинации
+    pagination_class = CenterPagination  # Указываем кастомную пагинацию
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['sections__id']  # Возможность фильтрации по секциям
     ordering_fields = ['name', 'location']  # Возможность сортировки по имени и локации
@@ -34,7 +31,6 @@ class CenterViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(sections__id=section_id)
         return queryset
 
-    
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
