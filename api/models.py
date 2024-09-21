@@ -26,6 +26,7 @@ def generate_qr_code(data):
 
 class SectionCategory(models.Model):
     name = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='category_images/', blank=True, null=True)  
 
     def __str__(self):
         return self.name
@@ -33,7 +34,7 @@ class SectionCategory(models.Model):
 class Section(models.Model):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
-    image = models.ImageField(upload_to='section_images/', blank=True, null=True)  # Adding image field
+    image = models.ImageField(upload_to='section_images/', blank=True, null=True)  
 
     def __str__(self):
         return self.name
