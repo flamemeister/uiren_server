@@ -86,4 +86,4 @@ class FeedbackSerializer(serializers.ModelSerializer):
 class SectionCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = SectionCategory
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'image']
