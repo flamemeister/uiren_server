@@ -182,3 +182,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'aldiyar.saken123@gmail.com'
 EMAIL_HOST_PASSWORD = 'siwm mfhm rorx praa'
 
+CORS_ALLOW_ALL_ORIGINS = True
+
+ALLOWED_HOSTS = ['*']

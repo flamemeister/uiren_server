@@ -33,6 +33,7 @@ class SectionCategory(models.Model):
 class Section(models.Model):
     name = models.CharField(max_length=255)
     category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE, null=True, blank=True)
+    image = models.ImageField(upload_to='section_images/', blank=True, null=True)  # Adding image field
 
     def __str__(self):
         return self.name
@@ -50,6 +51,7 @@ class Center(models.Model):
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     sections = models.ManyToManyField(Section, related_name='centers')  # Множество секций, связанных с центром
     qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
+    image = models.ImageField(upload_to='center_images/', blank=True, null=True)  # Adding image field
     link = models.CharField(max_length=200, blank=True, null=True)
 
     def __str__(self):
@@ -162,6 +164,3 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"Feedback by {self.user.email} for {self.center.name}"
-
-
-

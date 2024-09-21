@@ -4,10 +4,11 @@ from user.models import CustomUser
 
 class CenterSerializer(serializers.ModelSerializer):
     sections = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all(), many=True)
+    image = serializers.ImageField(required=False, allow_null=True)  # Добавляем поле для изображения
 
     class Meta:
         model = Center
-        fields = ['id', 'name', 'description', 'location', 'latitude', 'longitude', 'sections', 'link']
+        fields = ['id', 'name', 'description', 'location', 'latitude', 'longitude', 'sections', 'link', 'image']
 
     def create(self, validated_data):
         sections = validated_data.pop('sections', [])
@@ -22,6 +23,7 @@ class CenterSerializer(serializers.ModelSerializer):
             instance.sections.set(sections)
         return instance
 
+
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Schedule
@@ -29,10 +31,12 @@ class ScheduleSerializer(serializers.ModelSerializer):
 
 class SectionSerializer(serializers.ModelSerializer):
     schedules = ScheduleSerializer(many=True, read_only=True)
+    image = serializers.ImageField(required=False, allow_null=True)  # Добавляем поле для изображения
 
     class Meta:
         model = Section
-        fields = ['id', 'name' , 'category', 'schedules']
+        fields = ['id', 'name', 'category', 'schedules', 'image']
+
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
