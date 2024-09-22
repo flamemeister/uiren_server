@@ -113,3 +113,26 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"detail": "Пароль успешно сброшен."})
+
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework import status
+from .models import CustomUser
+from .serializers import UserDetailSerializer
+
+class VerifySMSView(generics.GenericAPIView):
+    def post(self, request, *args, **kwargs):
+        phone_number = request.data.get('phone_number')
+        sms_code = request.data.get('sms_code')
+
+        try:
+            user = CustomUser.objects.get(phone_number=phone_number)
+            if user.sms_code == sms_code:
+                user.is_verified = True
+                user.is_active = True  # Activate the account
+                user.save()
+                return Response({'detail': 'Account successfully verified.'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Invalid SMS code.'}, status=status.HTTP_400_BAD_REQUEST)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)

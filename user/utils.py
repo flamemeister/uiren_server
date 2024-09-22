@@ -20,4 +20,23 @@ def send_verification_email(user, request):
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
     )
+from twilio.rest import Client
+import random
+from django.conf import settings
+
+def generate_sms_code():
+    return random.randint(100000, 999999)
+
+def send_verification_sms(user):
+    sms_code = generate_sms_code()
+    user.sms_code = sms_code  # Store the code in the user's model (you need to add an sms_code field)
+    user.save()
+
+    client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    message = client.messages.create(
+        body=f"Your verification code is: {sms_code}",
+        from_=settings.TWILIO_PHONE_NUMBER,
+        to=user.phone_number
+    )
+
 
