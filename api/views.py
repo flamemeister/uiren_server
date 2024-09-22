@@ -3,8 +3,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from .models import Center, Section, Subscription, Schedule, Record, SectionCategory
-from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, ScheduleSerializer, RecordSerializer, SectionCategorySerializer
+from .models import Center, Section, Subscription, Schedule, Record, SectionCategory, Feedback
+from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, ScheduleSerializer, RecordSerializer, SectionCategorySerializer, FeedbackSerializer
 from .pagination import StandardResultsSetPagination
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -162,3 +162,17 @@ class RecordViewSet(viewsets.ModelViewSet):
         record.save()
 
         return Response({'message': 'Attendance confirmed successfully.'}, status=status.HTTP_200_OK)
+
+class FeedbackViewSet(viewsets.ModelViewSet):
+    queryset = Feedback.objects.all()
+    serializer_class = FeedbackSerializer
+    permission_classes = [IsAuthenticated]  
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def get_queryset(self):
+        user_feedback_only = self.request.query_params.get('user_feedback_only', None)
+        if user_feedback_only:
+            return Feedback.objects.filter(user=self.request.user)
+        return super().get_queryset()

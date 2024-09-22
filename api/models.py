@@ -143,3 +143,22 @@ class Record(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.schedule.section.name}"
+
+class Feedback(models.Model):
+    RATING_CHOICES = [
+        (1, '1 Star'),
+        (2, '2 Stars'),
+        (3, '3 Stars'),
+        (4, '4 Stars'),
+        (5, '5 Stars'),
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='feedbacks')
+    text = models.TextField()
+    stars = models.IntegerField(choices=RATING_CHOICES)
+    center = models.ForeignKey('Center', on_delete=models.CASCADE, related_name='feedbacks')  # Assuming feedback is for a Center
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Feedback by {self.user.email} - {self.stars} Stars"

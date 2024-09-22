@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Center, Section, Subscription, Schedule, Record, SectionCategory
+from .models import Center, Section, Subscription, Schedule, Record, SectionCategory, Feedback
 
 class CenterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -59,3 +59,9 @@ class SectionCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = SectionCategory
         fields = ['id', 'name', 'image']
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = ['id', 'user', 'text', 'stars', 'center', 'created_at']
+        read_only_fields = ['user', 'created_at']
