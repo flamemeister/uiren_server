@@ -16,35 +16,77 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 from .pagination import CenterPagination  
 
+from rest_framework import viewsets, status, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Center, Section, SectionCategory
+from .serializers import CenterSerializer, SectionSerializer
+from rest_framework.response import Response
+
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
-    pagination_class = CenterPagination  # Use custom pagination
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['sections__id']  # Enable filtering by section
-    ordering_fields = ['name', 'location']  # Enable ordering by name and location
+    pagination_class = CenterPagination
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    filterset_fields = ['sections__id']
+    search_fields = ['name', 'sections__name']
+    ordering_fields = ['name', 'location']
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        section_id = self.request.query_params.get('section', None)
-        if section_id:
-            queryset = queryset.filter(sections__id=section_id)
+        section_ids = self.request.query_params.getlist('section', None)
+        category_ids = self.request.query_params.getlist('category', None)
+
+        # Filter by sections
+        if section_ids:
+            queryset = queryset.filter(sections__id__in=section_ids)
+
+        # Filter by categories through sections
+        if category_ids:
+            queryset = queryset.filter(sections__category__id__in=category_ids)
+
         return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-
-        # Apply pagination if 'page' parameter is present
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)  # Serialize the paginated data
+            serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-        # When no pagination is applied, return all results in 'results' key
-        serializer = self.get_serializer(queryset, many=True)  # Serialize all data
+        serializer = self.get_serializer(queryset, many=True)
         return Response({
             'count': queryset.count(),
-            'results': serializer.data,  # Always return serialized data
+            'results': serializer.data,
+            'next': None,
+            'previous': None
+        })
+
+class SectionViewSet(viewsets.ModelViewSet):
+    queryset = Section.objects.all()
+    serializer_class = SectionSerializer
+    pagination_class = CenterPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    search_fields = ['name']
+    filterset_fields = ['category__id']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        category_ids = self.request.query_params.getlist('category', None)
+        if category_ids:
+            queryset = queryset.filter(category__id__in=category_ids)
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'count': queryset.count(),
+            'results': serializer.data,
             'next': None,
             'previous': None
         })
@@ -53,36 +95,6 @@ class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
     pagination_class = CenterPagination  # Use the same pagination class
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        # Apply pagination if 'page' parameter is present
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)  # Serialize the paginated data
-            return self.get_paginated_response(serializer.data)
-
-        # When no pagination is applied, return all results in 'results' key
-        serializer = self.get_serializer(queryset, many=True)  # Serialize all data
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,  # Always return serialized data
-            'next': None,
-            'previous': None
-        })
-
-class SectionViewSet(viewsets.ModelViewSet):
-    queryset = Section.objects.all()
-    serializer_class = SectionSerializer
-    pagination_class = CenterPagination  # Use the same pagination class
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        category = self.request.query_params.get('category', None)
-        if category:
-            queryset = queryset.filter(category__name=category)
-        return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
