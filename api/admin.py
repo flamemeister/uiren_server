@@ -40,12 +40,24 @@ class ScheduleAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'user_iin', 'section', 'type', 'name')
+    list_display = ('user', 'user_iin', 'section', 'type', 'name', 'expiration_date')
     search_fields = ('user__email', 'user__iin', 'center__name', 'section__name', 'type', 'name')
 
     def user_iin(self, obj):
         return obj.user.iin
     user_iin.short_description = 'IIN'
+
+    def save_model(self, request, obj, form, change):
+        if not obj.expiration_date:
+            if obj.type == '1 месяц':
+                obj.expiration_date = timezone.now() + timezone.timedelta(days=30)
+            elif obj.type == '6 месяцев':
+                obj.expiration_date = timezone.now() + timezone.timedelta(days=180)
+            elif obj.type == '12 месяцев':
+                obj.expiration_date = timezone.now() + timezone.timedelta(days=365)
+            else:
+                obj.expiration_date = timezone.now() + timezone.timedelta(days=30)  # По умолчанию 1 месяц
+        super().save_model(request, obj, form, change)
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):

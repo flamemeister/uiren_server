@@ -16,113 +16,48 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 from .pagination import CenterPagination  
 
-from rest_framework import viewsets, status, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from .models import Center, Section, SectionCategory
-from .serializers import CenterSerializer, SectionSerializer
-from rest_framework.response import Response
+MANAGER_WHATSAPP_NUMBER = '+77073478844'
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
-    pagination_class = CenterPagination
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    filterset_fields = ['sections__id']
-    search_fields = ['name', 'sections__name']
-    ordering_fields = ['name', 'location']
+    pagination_class = CenterPagination  
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['sections__id']  
+    ordering_fields = ['name', 'location']  
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        section_ids = self.request.query_params.getlist('section', None)
-        category_ids = self.request.query_params.getlist('category', None)
-
-        # Filter by sections
-        if section_ids:
-            queryset = queryset.filter(sections__id__in=section_ids)
-
-        # Filter by categories through sections
-        if category_ids:
-            queryset = queryset.filter(sections__category__id__in=category_ids)
-
+        section_id = self.request.query_params.get('section', None)
+        if section_id:
+            queryset = queryset.filter(sections__id=section_id)
         return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,
-            'next': None,
-            'previous': None
-        })
-
-class SectionViewSet(viewsets.ModelViewSet):
-    queryset = Section.objects.all()
-    serializer_class = SectionSerializer
-    pagination_class = CenterPagination
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    search_fields = ['name']
-    filterset_fields = ['category__id']
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        category_ids = self.request.query_params.getlist('category', None)
-        if category_ids:
-            queryset = queryset.filter(category__id__in=category_ids)
-        return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,
-            'next': None,
-            'previous': None
-        })
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
-    pagination_class = CenterPagination  # Use the same pagination class
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+class SectionViewSet(viewsets.ModelViewSet):
+    queryset = Section.objects.all()
+    serializer_class = SectionSerializer
 
-        # Apply pagination if 'page' parameter is present
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)  # Serialize the paginated data
-            return self.get_paginated_response(serializer.data)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        category = self.request.query_params.get('category', None)
+        if category:
+            queryset = queryset.filter(category__name=category)
+        return queryset
 
-        # When no pagination is applied, return all results in 'results' key
-        serializer = self.get_serializer(queryset, many=True)  # Serialize all data
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,  # Always return serialized data
-            'next': None,
-            'previous': None
-        })
-
+from django.utils import timezone
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
-    # permission_classes = [IsAuthenticated]  # Любой аутентифицированный пользователь может покупать абонементы
+    permission_classes = [IsAuthenticated]  # Любой аутентифицированный пользователь может покупать абонементы
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        buyer = request.user  
+        buyer = request.user
 
         child_id = data.get('user')
         try:
@@ -141,17 +76,31 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             except Section.DoesNotExist:
                 return Response({'error': 'Section not found.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Рассчитываем дату истечения в зависимости от типа подписки
+        subscription_type = data.get('type')
+
+        if subscription_type == 1:  # 1 месяц
+            expiration_date = timezone.now() + timezone.timedelta(days=30)
+        elif subscription_type == 2:  # 6 месяцев
+            expiration_date = timezone.now() + timezone.timedelta(days=180)
+        elif subscription_type == 3:  # 12 месяцев
+            expiration_date = timezone.now() + timezone.timedelta(days=365)
+        else:
+            return Response({'error': 'Invalid subscription type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Создаем подписку
         subscription = Subscription.objects.create(
             purchased_by=buyer,
             user=child,
             section=section,
-            type=data.get('type'),
+            type=subscription_type,
             name=data.get('name'),
-            expiration_date=timezone.now() + timezone.timedelta(days=30)  # Пример срока действия
+            expiration_date=expiration_date  # Устанавливаем рассчитанную дату
         )
 
         serializer = self.get_serializer(subscription)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
     @action(detail=True, methods=['post'], url_path='deactivate', permission_classes=[IsAuthenticated])
     def deactivate_subscription(self, request, pk=None):
@@ -256,8 +205,6 @@ def confirm_attendance(request):
     enrollment.save()
 
     return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
-
-MANAGER_WHATSAPP_NUMBER = '+77073478844'
 
 
 @api_view(['GET'])

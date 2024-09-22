@@ -44,6 +44,9 @@ class Section(models.Model):
         for center in self.centers.all():
             center.save()
 
+
+
+
 class Center(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
@@ -94,6 +97,9 @@ class Center(models.Model):
             self.save(update_fields=['qr_code'])
 
 
+
+
+
 class Schedule(models.Model):
     center = models.ForeignKey(Center, related_name='schedules', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='schedules', on_delete=models.CASCADE)
@@ -111,24 +117,27 @@ class Schedule(models.Model):
 
     def __str__(self):
         return f"{self.center.name} - {self.section.name} on {self.day_of_week} from {self.start_time} to {self.end_time}"
+    
+
 
 class Subscription(models.Model):
     TYPE_CHOICES = (
-        ('8 уроков', '8 уроков'),
-        ('10 уроков', '10 уроков'),
-        ('12 уроков', '12 уроков')
+        (1, '1 месяц'),
+        (2, '6 месяцев'),
+        (3, '12 месяцев')
     )
     purchased_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='purchased_subscriptions', null=True, blank=True)
-    user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)  # Связь по ID пользователя
+    user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)
     section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE, null=True, blank=True)
-    type = models.CharField(max_length=255, choices=TYPE_CHOICES)
+    type = models.IntegerField(choices=TYPE_CHOICES)  
     name = models.CharField(max_length=255)
     activation_date = models.DateTimeField(auto_now_add=True)
-    expiration_date = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=30))
+    expiration_date = models.DateTimeField()
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.name} - {self.type} ({self.user.email})"
+
 
 class Enrollment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='enrollments', on_delete=models.CASCADE)
