@@ -5,47 +5,69 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from .models import Center, Section, Subscription, Schedule, Record, SectionCategory
 from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, ScheduleSerializer, RecordSerializer, SectionCategorySerializer
+from .pagination import StandardResultsSetPagination
 from django.utils import timezone
 from datetime import timedelta, datetime
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
+    pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name', 'location']
-    filterset_fields = ['description']
+    
+    # Allow searching by name, location, description
+    search_fields = ['name', 'location', 'description']
+    
+    # Allow filtering by description, latitude, longitude, and related section ID
+    filterset_fields = ['description', 'latitude', 'longitude', 'sections__id']
+
+    # Allow ordering by fields
+    ordering_fields = ['name', 'location', 'latitude', 'longitude']
+
 
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
+    pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'description']
-    filterset_fields = ['category']
+    filterset_fields = ['category', 'centers']
+
+    ordering_fields = ['name', 'category', 'description']
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
+    pagination_class = StandardResultsSetPagination
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
-    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['user', 'section', 'type', 'is_active']
 
-    def perform_create(self, serializer):
-        # Automatically set the user from the JWT token (request.user)
-        serializer.save(user=self.request.user)
+    search_fields = ['section__name', 'user__email']
+    ordering_fields = ['start_date', 'end_date']
 
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
+    pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['center', 'section', 'status']
+    filterset_fields = ['center', 'section', 'status', 'date', 'start_time', 'end_time']
+
     search_fields = ['center__name', 'section__name']
-    ordering_fields = ['start_time', 'capacity', 'reserved']
+    ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
 
 class RecordViewSet(viewsets.ModelViewSet):
     queryset = Record.objects.all()
     serializer_class = RecordSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['user', 'section', 'schedule', 'attended']
+    search_fields = ['schedule__section__name', 'user__email']
+    ordering_fields = ['schedule__start_time', 'attended']
 
     def create(self, request, *args, **kwargs):
         user = request.user
