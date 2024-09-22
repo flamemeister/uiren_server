@@ -44,6 +44,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'section', 'type', 'start_date', 'end_date', 'is_active']
         read_only_fields = ['user', 'start_date', 'end_date', 'is_active']
 
+
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Schedule

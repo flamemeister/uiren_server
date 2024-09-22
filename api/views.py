@@ -43,12 +43,18 @@ class SectionCategoryViewSet(viewsets.ModelViewSet):
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['user', 'section', 'type', 'is_active']
 
+    # Filter by user, section, type, and active status
+    filterset_fields = ['section', 'type', 'is_active']
     search_fields = ['section__name', 'user__email']
     ordering_fields = ['start_date', 'end_date']
+
+    def perform_create(self, serializer):
+        # Automatically set the user from the JWT token (request.user)
+        serializer.save(user=self.request.user)
 
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
