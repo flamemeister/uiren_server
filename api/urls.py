@@ -1,18 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CenterViewSet, SectionViewSet, SubscriptionViewSet, EnrollmentViewSet, FeedbackViewSet, SectionCategoryViewSet, confirm_attendance, redirect_to_whatsapp
-
+from .views import CenterViewSet, SectionViewSet, SubscriptionViewSet, ScheduleViewSet, RecordViewSet, SectionCategoryViewSet
 
 router = DefaultRouter()
 router.register(r'centers', CenterViewSet)
 router.register(r'sections', SectionViewSet)
+router.register(r'categories', SectionCategoryViewSet)
 router.register(r'subscriptions', SubscriptionViewSet)
-router.register(r'enrollments', EnrollmentViewSet)
-router.register(r'feedbacks', FeedbackViewSet)
-router.register(r'section-categories', SectionCategoryViewSet)
+router.register(r'schedules', ScheduleViewSet)
+router.register(r'records', RecordViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('confirm_attendance/', confirm_attendance, name='confirm_attendance'),
-    path('contact_manager/', redirect_to_whatsapp, name='contact_manager'),
+    path('attendance/', RecordViewSet.as_view({'post': 'confirm_attendance'})),
 ]

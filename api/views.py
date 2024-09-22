@@ -1,271 +1,130 @@
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action, api_view
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
-from django.utils import timezone
-from .models import Center, Section, Subscription, Enrollment, Feedback, SectionCategory
-from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, EnrollmentSerializer, FeedbackSerializer, SectionCategorySerializer
-import json
-from user.models import CustomUser
-from django.shortcuts import redirect, get_object_or_404
-import uuid
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import requests
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.pagination import PageNumberPagination
-from .pagination import CenterPagination  
-
-from rest_framework import viewsets, status, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from .models import Center, Section, SectionCategory
-from .serializers import CenterSerializer, SectionSerializer
-from rest_framework.response import Response
+from .models import Center, Section, Subscription, Schedule, Record, SectionCategory
+from .serializers import CenterSerializer, SectionSerializer, SubscriptionSerializer, ScheduleSerializer, RecordSerializer, SectionCategorySerializer
+from django.utils import timezone
+from datetime import timedelta, datetime
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
-    pagination_class = CenterPagination
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    filterset_fields = ['sections__id']
-    search_fields = ['name', 'sections__name']
-    ordering_fields = ['name', 'location']
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        section_ids = self.request.query_params.getlist('section', None)
-        category_ids = self.request.query_params.getlist('category', None)
-
-        # Filter by sections
-        if section_ids:
-            queryset = queryset.filter(sections__id__in=section_ids)
-
-        # Filter by categories through sections
-        if category_ids:
-            queryset = queryset.filter(sections__category__id__in=category_ids)
-
-        return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,
-            'next': None,
-            'previous': None
-        })
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'location']
+    filterset_fields = ['description']
 
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
-    pagination_class = CenterPagination
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    search_fields = ['name']
-    filterset_fields = ['category__id']
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        category_ids = self.request.query_params.getlist('category', None)
-        if category_ids:
-            queryset = queryset.filter(category__id__in=category_ids)
-        return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,
-            'next': None,
-            'previous': None
-        })
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'description']
+    filterset_fields = ['category']
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
-    pagination_class = CenterPagination  # Use the same pagination class
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        # Apply pagination if 'page' parameter is present
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)  # Serialize the paginated data
-            return self.get_paginated_response(serializer.data)
-
-        # When no pagination is applied, return all results in 'results' key
-        serializer = self.get_serializer(queryset, many=True)  # Serialize all data
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data,  # Always return serialized data
-            'next': None,
-            'previous': None
-        })
-
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
-    # permission_classes = [IsAuthenticated]  # Любой аутентифицированный пользователь может покупать абонементы
+    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+
+    def perform_create(self, serializer):
+        # Automatically set the user from the JWT token (request.user)
+        serializer.save(user=self.request.user)
+
+class ScheduleViewSet(viewsets.ModelViewSet):
+    queryset = Schedule.objects.all()
+    serializer_class = ScheduleSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['center', 'section', 'status']
+    search_fields = ['center__name', 'section__name']
+    ordering_fields = ['start_time', 'capacity', 'reserved']
+
+class RecordViewSet(viewsets.ModelViewSet):
+    queryset = Record.objects.all()
+    serializer_class = RecordSerializer
 
     def create(self, request, *args, **kwargs):
-        data = request.data
-        buyer = request.user  
+        user = request.user
+        schedule_id = request.data.get('schedule')
+        section_id = request.data.get('section')
 
-        child_id = data.get('user')
-        try:
-            if child_id:
-                child = CustomUser.objects.get(id=child_id)
-            else:
-                child = buyer
-        except CustomUser.DoesNotExist:
-            return Response({'error': 'Child not found.'}, status=status.HTTP_400_BAD_REQUEST)
+        # Validate the section and schedule
+        schedule = Schedule.objects.get(id=schedule_id)
+        subscription = Subscription.objects.filter(user=user, section_id=section_id).first()
 
-        section_id = data.get('section')
-        section = None
-        if section_id:
-            try:
-                section = Section.objects.get(id=section_id)
-            except Section.DoesNotExist:
-                return Response({'error': 'Section not found.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not subscription:
+            return Response({'error': 'You do not have a valid subscription for this section.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        subscription = Subscription.objects.create(
-            purchased_by=buyer,
-            user=child,
-            section=section,
-            type=data.get('type'),
-            name=data.get('name'),
-            expiration_date=timezone.now() + timezone.timedelta(days=30)  # Пример срока действия
+        if subscription.section.id != schedule.section.id:
+            return Response({'error': 'Subscription section does not match schedule section.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Combine schedule date and start_time into a datetime object
+        schedule_start_datetime = datetime.combine(schedule.date, schedule.start_time)
+
+        # Check if user has overlapping records within 1 hour
+        overlapping_records = Record.objects.filter(
+            user=user,
+            schedule__date=schedule.date,
+            schedule__start_time__range=(
+                (schedule_start_datetime - timedelta(hours=1)).time(),
+                (schedule_start_datetime + timedelta(hours=1)).time()
+            )
         )
 
-        serializer = self.get_serializer(subscription)
+        if overlapping_records.exists():
+            return Response({'error': 'You cannot apply for overlapping schedules within 1 hour.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prevent applying to the same schedule more than once
+        if Record.objects.filter(user=user, schedule=schedule).exists():
+            return Response({'error': 'You have already applied for this schedule.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create record
+        record = Record.objects.create(
+            user=user,
+            schedule=schedule,
+            section=schedule.section
+        )
+        schedule.reserved += 1
+        schedule.save()
+
+        serializer = self.get_serializer(record)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'], url_path='deactivate', permission_classes=[IsAuthenticated])
-    def deactivate_subscription(self, request, pk=None):
-        subscription = self.get_object()
-        if subscription.purchased_by != request.user:
-            return Response({'error': 'You do not have permission to deactivate this subscription.'}, status=status.HTTP_403_FORBIDDEN)
-        subscription.is_active = False
-        subscription.save()
-        return Response({'status': 'Subscription deactivated.'}, status=status.HTTP_200_OK)
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def confirm_attendance(self, request):
+        # Get the record ID from the request body
+        record_id = request.data.get('record_id')
 
-    @action(detail=False, methods=['get'])
-    def my_subscriptions(self, request):
-        iin = request.query_params.get('iin')
-        if not iin:
-            return Response({"error": "IIN is required"}, status=status.HTTP_400_BAD_REQUEST)
-        subscriptions = Subscription.objects.filter(user__iin=iin)
-        serializer = self.get_serializer(subscriptions, many=True)
-        return Response(serializer.data)
+        # Ensure record_id is provided
+        if not record_id:
+            return Response({'error': 'Record ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['post'])
-    def rename(self, request, pk=None):
-        subscription = self.get_object()
-        if subscription.user != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-        new_name = request.data.get('name')
-        subscription.name = new_name
-        subscription.save()
-        return Response(status=status.HTTP_200_OK)
+        try:
+            # Retrieve the record and schedule associated with the record
+            record = Record.objects.get(id=record_id, user=request.user)
+            schedule = record.schedule
+        except Record.DoesNotExist:
+            return Response({'error': 'Record not found or you do not have access to this record.'}, status=status.HTTP_404_NOT_FOUND)
 
-class EnrollmentViewSet(viewsets.ModelViewSet):
-    queryset = Enrollment.objects.all()
-    serializer_class = EnrollmentSerializer
+        # Check if the user has already attended the lesson
+        if record.attended:
+            return Response({'error': 'You have already attended this lesson.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['get'])
-    def my_enrollments(self, request):
-        user = request.user
-        enrollments = Enrollment.objects.filter(user=user)
-        serializer = self.get_serializer(enrollments, many=True)
-        return Response(serializer.data)
+        # Check if the time of the lesson has not arrived yet
+        current_datetime = timezone.now()
+        schedule_datetime = timezone.make_aware(
+            timezone.datetime.combine(schedule.date, schedule.start_time)
+        )
 
-    @action(detail=True, methods=['post'])
-    def cancel(self, request, pk=None):
-        enrollment = self.get_object()
-        if enrollment.user != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-        enrollment.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        if current_datetime < schedule_datetime:
+            return Response({'error': 'The lesson has not started yet.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['post'])
-    def confirm(self, request, pk=None):
-        enrollment = self.get_object()
-        if enrollment.user != request.user:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-        enrollment.confirmed = True
-        enrollment.confirmation_time = timezone.now()
-        enrollment.save()
-        return Response(status=status.HTTP_200_OK)
+        # Mark the attendance
+        record.attended = True
+        record.save()
 
-class FeedbackViewSet(viewsets.ModelViewSet):
-    queryset = Feedback.objects.all()
-    serializer_class = FeedbackSerializer
-
-@api_view(['POST'])
-def confirm_attendance(request):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Authentication credentials were not provided'}, status=status.HTTP_401_UNAUTHORIZED)
-
-    qr_code_data = request.data.get('qr_code', None)
-    if qr_code_data is None:
-        return Response({'error': 'QR code data not provided'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        data = json.loads(qr_code_data)
-        center_id = data.get('center_id')
-        center = get_object_or_404(Center, id=center_id)
-        user = request.user
-    except (json.JSONDecodeError, KeyError) as e:
-        return Response({'error': f'Invalid QR code data: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
-    if 'subscriptions' not in data:
-        return Response({'error': 'No subscriptions data found in the QR code'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    subscriptions = Subscription.objects.filter(
-        user=user,
-        center=center,
-        id__in=[s['subscription_id'] for s in data['subscriptions']]
-    )
-    if not subscriptions.exists():
-        return Response({'error': 'No active subscription found for this center'}, status=status.HTTP_400_BAD_REQUEST)
-
-    enrollment = Enrollment.objects.filter(
-        user=user,
-        section__center=center,
-        confirmed=False,
-        subscription__in=subscriptions
-    ).first()
-    if not enrollment:
-        return Response({'error': 'No active enrollment found for this center'}, status=status.HTTP_400_BAD_REQUEST)
-
-    enrollment.confirmed = True
-    enrollment.confirmation_time = timezone.now()
-    enrollment.save()
-
-    return Response({'message': 'Attendance confirmed successfully'}, status=status.HTTP_200_OK)
-
-MANAGER_WHATSAPP_NUMBER = '+77073478844'
-
-
-@api_view(['GET'])
-def redirect_to_whatsapp(request):
-    """Endpoint to redirect to WhatsApp chat with the manager for payment."""
-    message = "Hello, I would like to make a payment."
-    whatsapp_url = f"https://wa.me/{MANAGER_WHATSAPP_NUMBER}?text={message}"
-    
-    return redirect(whatsapp_url)
-
-
+        return Response({'message': 'Attendance confirmed successfully.'}, status=status.HTTP_200_OK)
