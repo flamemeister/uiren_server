@@ -55,10 +55,16 @@ class ScheduleViewSet(viewsets.ModelViewSet):
     serializer_class = ScheduleSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['center', 'section', 'status', 'date', 'start_time', 'end_time']
+    
+    # Filter by center, section, status, date, start time, end time, and users (via records)
+    filterset_fields = ['center', 'section', 'status', 'date', 'start_time', 'end_time', 'records__user__id']
 
+    # Search by center name and section name
     search_fields = ['center__name', 'section__name']
+
+    # Allow ordering by start time, end time, capacity, and reserved seats
     ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
+
 
 class RecordViewSet(viewsets.ModelViewSet):
     queryset = Record.objects.all()
