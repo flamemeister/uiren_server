@@ -6,6 +6,8 @@ import io
 from django.core.files.base import ContentFile
 from user.models import CustomUser  # Assume this exists
 
+GOOGLE_API_KEY = 'AIzaSyCN-x4jF1BZ9UoWD144d4vH4ocal-EDz5k'
+
 # QR Code Generation Utility
 def generate_qr_code(data):
     qr = qrcode.QRCode(
@@ -30,32 +32,21 @@ class SectionCategory(models.Model):
     def __str__(self):
         return self.name
 
-# Section Model
-class Section(models.Model):
-    name = models.CharField(max_length=255)
-    category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='section_images/', blank=True, null=True)
-    centers = models.ManyToManyField('Center', related_name='sections')
-    description = models.TextField(null=True, blank=True)  # New description field
-
-    def __str__(self):
-        return self.name
-
-# Center Model
 # Center Model
 class Center(models.Model):
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255)  # Address or location that will be geocoded
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
     image = models.ImageField(upload_to='center_images/', blank=True, null=True)
-    description = models.TextField(null=True, blank=True)  # New description field
+    description = models.TextField(null=True, blank=True)  # Existing description field
+    about = models.TextField(null=True, blank=True)  # New about field
+    users = models.ManyToManyField(CustomUser, related_name='editable_centers')  # Users who can edit the center
 
     def save(self, *args, **kwargs):
         # Geocode the location if latitude or longitude is missing
         if not self.latitude or not self.longitude:
-            geolocator = GoogleV3(api_key='AIzaSyCN-x4jF1BZ9UoWD144d4vH4ocal-EDz5k')  # Replace with your Google API key
+            geolocator = GoogleV3(api_key=GOOGLE_API_KEY)  # Replace with your Google API key
             location = geolocator.geocode(self.location)
             if location:
                 self.latitude = location.latitude
@@ -63,12 +54,28 @@ class Center(models.Model):
             else:
                 raise ValueError(f"Unable to geocode location: {self.location}")
 
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+# Section Model
+class Section(models.Model):
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='section_images/', blank=True, null=True)
+    center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
+    description = models.TextField(null=True, blank=True)  # Existing description field
+    about = models.TextField(null=True, blank=True)  # New about field
+    qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
+
+    def save(self, *args, **kwargs):
         # Save the object first to ensure it has an ID
         super().save(*args, **kwargs)
         
         # Generate QR Code if it doesn't exist
         if not self.qr_code:
-            qr_data = {'center_id': self.id}
+            qr_data = {'section_id': self.id}
             qr_code_file = generate_qr_code(qr_data)
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             
@@ -78,8 +85,6 @@ class Center(models.Model):
     def __str__(self):
         return self.name
 
-
-
 # Subscription Model
 class Subscription(models.Model):
     TYPE_CHOICES = (
@@ -88,7 +93,6 @@ class Subscription(models.Model):
         ('YEAR', 'Year')
     )
     user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)
-    section = models.ForeignKey(Section, related_name='subscriptions', on_delete=models.CASCADE)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
     start_date = models.DateTimeField(default=timezone.now)  # Set start_date automatically
     end_date = models.DateTimeField(null=True, blank=True)  # Will be calculated based on type
@@ -109,16 +113,18 @@ class Subscription(models.Model):
         if not self.end_date:
             self.end_date = self.start_date + timezone.timedelta(days=duration_mapping[self.type])
 
+        # Update is_active status
+        self.is_active = self.end_date > timezone.now()
+
         # Call the parent class's save method to save the object
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.user.email} - {self.section.name}"
+        return f"{self.user.email} - {self.type}"
 
 # Schedule Model
 class Schedule(models.Model):
     section = models.ForeignKey(Section, related_name='schedules', on_delete=models.CASCADE)
-    center = models.ForeignKey(Center, related_name='schedules', on_delete=models.CASCADE)
     date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
@@ -129,17 +135,19 @@ class Schedule(models.Model):
     def save(self, *args, **kwargs):
         if self.reserved >= self.capacity:
             self.status = False
+        else:
+            self.status = True  # Ensure status is True when reserved < capacity
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.center.name} - {self.section.name} on {self.date}"
+        return f"{self.section.name} on {self.date}"
 
 # Record Model
 class Record(models.Model):
     user = models.ForeignKey(CustomUser, related_name='records', on_delete=models.CASCADE)
     schedule = models.ForeignKey(Schedule, related_name='records', on_delete=models.CASCADE)
     attended = models.BooleanField(default=False)
-    section = models.ForeignKey(Section, related_name='records', on_delete=models.CASCADE)  # Track section directly
+    subscription = models.ForeignKey(Subscription, related_name='records', on_delete=models.CASCADE)
 
     def __str__(self):
         return f"{self.user.email} - {self.schedule.section.name}"

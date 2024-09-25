@@ -37,7 +37,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ('USER', 'User'),
         ('ADMIN', 'Admin'),
         ('CHILD', 'Child'),
-        ('PARENT', 'Parent')
+        ('PARENT', 'Parent'),
+        ('STAFF', 'Staff'),
     )
 
     email = models.EmailField(unique=True, null=True, blank=True)
