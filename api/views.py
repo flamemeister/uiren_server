@@ -73,7 +73,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Subscription.objects.filter(user=self.request.user)
         current_datetime = timezone.now()
-        # Update is_active status based on end_date
         queryset.filter(end_date__lt=current_datetime).update(is_active=False)
         return queryset
 
@@ -94,6 +93,25 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         if instance.end_date < timezone.now():
             instance.is_active = False
             instance.save()
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def unactivated_subscriptions(self, request):
+        # Return all unactivated subscriptions
+        unactivated_subs = Subscription.objects.filter(is_activated_by_admin=False)
+        serializer = self.get_serializer(unactivated_subs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def activate_subscription(self, request, pk=None):
+        try:
+            subscription = Subscription.objects.get(pk=pk)
+        except Subscription.DoesNotExist:
+            return Response({'error': 'Subscription does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+        subscription.is_activated_by_admin = True
+        subscription.save()
+
+        return Response({'message': 'Subscription activated successfully.'}, status=status.HTTP_200_OK)
 
 
 class ScheduleViewSet(viewsets.ModelViewSet):
@@ -124,24 +142,26 @@ class RecordViewSet(viewsets.ModelViewSet):
         schedule_id = request.data.get('schedule')
         subscription_id = request.data.get('subscription')
 
-        # Validate the schedule
         try:
             schedule = Schedule.objects.get(id=schedule_id)
         except Schedule.DoesNotExist:
             return Response({'error': 'Schedule does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate the subscription
         try:
             subscription = Subscription.objects.get(id=subscription_id, user=user, is_active=True)
         except Subscription.DoesNotExist:
             return Response({'error': 'You do not have a valid subscription.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check subscription validity
+        # Check if the subscription has been activated by the admin
+        if not subscription.is_activated_by_admin:
+            return Response({'error': 'Your subscription has not been activated by an admin.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check subscription expiry
         current_datetime = timezone.now()
         if subscription.end_date < current_datetime:
             return Response({'error': 'Your subscription has expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check for overlapping records with the same subscription
+        # Prevent multiple reservations for overlapping schedules
         schedule_start_datetime = datetime.combine(schedule.date, schedule.start_time)
         overlapping_records = Record.objects.filter(
             user=user,
@@ -154,13 +174,11 @@ class RecordViewSet(viewsets.ModelViewSet):
         )
 
         if overlapping_records.exists():
-            return Response({'error': 'You cannot apply for overlapping schedules within 1 hour using the same subscription.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'You cannot apply for overlapping schedules using the same subscription.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Prevent applying to the same schedule more than once with the same subscription
         if Record.objects.filter(user=user, schedule=schedule, subscription=subscription).exists():
             return Response({'error': 'You have already applied for this schedule with this subscription.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create record
         record = Record.objects.create(
             user=user,
             schedule=schedule,

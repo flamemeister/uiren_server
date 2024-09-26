@@ -54,7 +54,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         role = validated_data.get('role', 'USER')
 
-        # Создаем пользователя
+        # Create the user
         user = CustomUser.objects.create_user(
             email=validated_data.get('email'),
             phone_number=validated_data.get('phone_number'),
@@ -65,20 +65,21 @@ class RegisterSerializer(serializers.ModelSerializer):
             role=role
         )
 
-        # Если роль ADMIN, то устанавливаем флаг is_staff
+        # Automatically set is_staff and is_superuser for ADMIN role
         if role == 'ADMIN':
             user.is_staff = True
+            user.is_superuser = True  # Grant full superuser privileges
 
-        # Сохраняем пользователя с обновленным статусом
         user.save()
 
-        # Отправляем соответствующее подтверждение по email или SMS
+        # Send verification based on email or SMS
         if user.email:
             send_verification_email(user, self.context['request'])
         elif user.phone_number:
             send_verification_sms(user)
 
         return user
+
 
 
 class UserDetailSerializer(serializers.ModelSerializer):

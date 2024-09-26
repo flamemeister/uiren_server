@@ -5,6 +5,9 @@ import qrcode
 import io
 from django.core.files.base import ContentFile
 from user.models import CustomUser  # Assume this exists
+from datetime import timedelta, datetime
+import calendar
+
 
 GOOGLE_API_KEY = 'AIzaSyCN-x4jF1BZ9UoWD144d4vH4ocal-EDz5k'
 
@@ -62,15 +65,16 @@ class Center(models.Model):
 # Section Model
 class Section(models.Model):
     name = models.CharField(max_length=255)
-    category = models.ForeignKey(SectionCategory, related_name='sections', on_delete=models.CASCADE)
+    category = models.ForeignKey('SectionCategory', related_name='sections', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='section_images/', blank=True, null=True)
-    center = models.ForeignKey(Center, related_name='sections', on_delete=models.CASCADE)
-    description = models.TextField(null=True, blank=True)  # Existing description field
-    about = models.TextField(null=True, blank=True)  # New about field
+    center = models.ForeignKey('Center', related_name='sections', on_delete=models.CASCADE)
+    description = models.TextField(null=True, blank=True)
     qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
 
+    # Weekly pattern: a JSON field that stores schedule information
+    weekly_pattern = models.JSONField(default=list)  # Example: [{"day": "Monday", "start_time": "14:00", "end_time": "17:00"}]
+
     def save(self, *args, **kwargs):
-        # Save the object first to ensure it has an ID
         super().save(*args, **kwargs)
         
         # Generate QR Code if it doesn't exist
@@ -81,6 +85,42 @@ class Section(models.Model):
             
             # Save the updated qr_code field
             super().save(update_fields=['qr_code'])
+
+        # Generate the schedule for the next month
+        self.generate_schedule_for_next_month()
+
+    def generate_schedule_for_next_month(self):
+        """
+        Generate static schedules for the next month based on the weekly pattern.
+        """
+        today = timezone.now().date()
+        first_day_of_next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+        last_day_of_next_month = first_day_of_next_month.replace(day=calendar.monthrange(first_day_of_next_month.year, first_day_of_next_month.month)[1])
+
+        # Clear any existing schedules for the section in the next month
+        Schedule.objects.filter(section=self, date__gte=first_day_of_next_month, date__lte=last_day_of_next_month).delete()
+
+        # Loop over each day in the next month and apply the weekly pattern
+        current_date = first_day_of_next_month
+        while current_date <= last_day_of_next_month:
+            day_name = current_date.strftime('%A')  # Get the day name (e.g., Monday, Tuesday)
+
+            for pattern in self.weekly_pattern:
+                if pattern['day'] == day_name:
+                    start_time = datetime.strptime(pattern['start_time'], '%H:%M').time()
+                    end_time = datetime.strptime(pattern['end_time'], '%H:%M').time()
+
+                    # Create a new schedule for this day
+                    Schedule.objects.create(
+                        section=self,
+                        date=current_date,
+                        start_time=start_time,
+                        end_time=end_time,
+                        capacity=20,  # Default capacity, can be customized
+                    )
+
+            # Move to the next day
+            current_date += timedelta(days=1)
 
     def __str__(self):
         return self.name
@@ -94,29 +134,26 @@ class Subscription(models.Model):
     )
     user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)
     type = models.CharField(max_length=255, choices=TYPE_CHOICES)
-    start_date = models.DateTimeField(default=timezone.now)  # Set start_date automatically
-    end_date = models.DateTimeField(null=True, blank=True)  # Will be calculated based on type
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_purchased = models.BooleanField(default=False)  # New field to check if purchased
+    is_activated_by_admin = models.BooleanField(default=False)  # New field for admin activation
 
     def save(self, *args, **kwargs):
-        # Ensure start_date is set properly
         if not self.start_date:
             self.start_date = timezone.now()
-        
-        # Define the end date based on subscription type
+
         duration_mapping = {
             'MONTH': 30,
             '6_MONTHS': 180,
             'YEAR': 365
         }
-        # If no end_date is provided, calculate it based on the subscription type
+
         if not self.end_date:
             self.end_date = self.start_date + timezone.timedelta(days=duration_mapping[self.type])
 
-        # Update is_active status
         self.is_active = self.end_date > timezone.now()
-
-        # Call the parent class's save method to save the object
         super().save(*args, **kwargs)
 
     def __str__(self):
