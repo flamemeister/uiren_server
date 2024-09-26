@@ -68,7 +68,7 @@ class SectionSerializer(serializers.ModelSerializer):
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
-        fields = ['id', 'user', 'type', 'start_date', 'end_date', 'is_active']
+        fields = ['id', 'name', 'user', 'type', 'start_date', 'end_date', 'is_active']
         read_only_fields = ['user', 'start_date', 'end_date', 'is_active']
 
 class ScheduleSerializer(serializers.ModelSerializer):

@@ -132,13 +132,19 @@ class Subscription(models.Model):
         ('6_MONTHS', '6 Months'),
         ('YEAR', 'Year')
     )
+    
+    # New name field
+    name = models.CharField(max_length=255, default='Subscription')  # Default subscription name
+    
+    # Updated type field with default set to 6 months
+    type = models.CharField(max_length=255, choices=TYPE_CHOICES, default='6_MONTHS')
+    
     user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)
-    type = models.CharField(max_length=255, choices=TYPE_CHOICES)
     start_date = models.DateTimeField(default=timezone.now)
     end_date = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    is_purchased = models.BooleanField(default=False)  # New field to check if purchased
-    is_activated_by_admin = models.BooleanField(default=False)  # New field for admin activation
+    is_purchased = models.BooleanField(default=False)
+    is_activated_by_admin = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.start_date:
@@ -157,7 +163,8 @@ class Subscription(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.user.email} - {self.type}"
+        return f"{self.name} - {self.user.email} - {self.type}"
+
 
 # Schedule Model
 class Schedule(models.Model):
