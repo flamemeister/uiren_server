@@ -15,7 +15,7 @@ class SectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Section
-        fields = ['id', 'name', 'category', 'image', 'center', 'description', 'about', 'qr_code']
+        fields = ['id', 'name', 'category', 'image', 'center', 'description', 'qr_code']
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:

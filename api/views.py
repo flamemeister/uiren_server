@@ -39,7 +39,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
-    search_fields = ['name', 'description', 'about']
+    search_fields = ['name', 'description']
     filterset_fields = ['category', 'center']
     ordering_fields = ['name', 'category', 'description']
     
@@ -73,12 +73,28 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Subscription.objects.filter(user=self.request.user)
         current_datetime = timezone.now()
-        # Update is_active status
+        # Update is_active status based on end_date
         queryset.filter(end_date__lt=current_datetime).update(is_active=False)
         return queryset
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)  # Allow PATCH (partial update)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Update is_active based on end_date
+        if instance.end_date < timezone.now():
+            instance.is_active = False
+            instance.save()
+
 
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
@@ -220,3 +236,116 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         if user_feedback_only:
             return Feedback.objects.filter(user=self.request.user)
         return super().get_queryset()
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.utils import timezone
+from django.db.models import Count
+from datetime import timedelta
+from user.models import CustomUser
+from api.models import Subscription
+from api.models import Center
+from api.models import Schedule
+
+@api_view(['GET'])
+def dashboard_metrics(request):
+    today = timezone.now().date()
+    start_of_week = today - timedelta(days=today.weekday())
+    
+    # Total Users
+    total_users = CustomUser.objects.count()
+
+    # Active Subscriptions
+    active_subscriptions = Subscription.objects.filter(is_active=True).count()
+
+    # Total Centers
+    total_centers = Center.objects.count()
+
+    # Lessons Today or This Week
+    lessons_today = Schedule.objects.filter(date=today).count()
+    lessons_this_week = Schedule.objects.filter(date__gte=start_of_week, date__lte=today + timedelta(days=6)).count()
+
+    # Feedback Count (if applicable)
+    feedback_count = Feedback.objects.count()
+
+    return Response({
+        'total_users': total_users,
+        'active_subscriptions': active_subscriptions,
+        'total_centers': total_centers,
+        'lessons_today': lessons_today,
+        'lessons_this_week': lessons_this_week,
+        'feedback_count': feedback_count,
+    })
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from user.models import CustomUser
+from api.models import Subscription
+from api.models import Feedback, Record
+from django.utils import timezone
+
+@api_view(['GET'])
+def recent_activities(request):
+    # Recent User Signups
+    recent_signups = CustomUser.objects.order_by('-date_joined')[:5]
+
+    # Recent Feedback
+    recent_feedback = Feedback.objects.order_by('-created_at')[:5]
+
+    # Recent Lesson Enrollments
+    recent_enrollments = Record.objects.order_by('-id')[:5]
+
+    return Response({
+        'recent_signups': [{
+            'email': signup.email,
+            'date_joined': signup.date_joined
+        } for signup in recent_signups],
+        'recent_feedback': [{
+            'user': feedback.user.email,
+            'center': feedback.center.name,
+            'stars': feedback.stars,
+            'text': feedback.text,
+            'created_at': feedback.created_at,
+        } for feedback in recent_feedback],
+        'recent_enrollments': [{
+            'user': enrollment.user.email,
+            'section': enrollment.section.name,
+            'center': enrollment.schedule.center.name,
+            'date': enrollment.schedule.date,
+            'attended': enrollment.attended,
+        } for enrollment in recent_enrollments],
+    })
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.utils import timezone
+from api.models import Subscription
+from api.models import Schedule
+from datetime import timedelta
+
+@api_view(['GET'])
+def dashboard_notifications(request):
+    today = timezone.now().date()
+
+    # Upcoming Lessons within the next 7 days
+    upcoming_lessons = Schedule.objects.filter(date__gte=today, date__lte=today + timedelta(days=7))
+
+    # Expired Subscriptions
+    expired_subscriptions = Subscription.objects.filter(end_date__lt=today, is_active=False)
+
+    return Response({
+        'upcoming_lessons': [{
+            'center': lesson.center.name,
+            'section': lesson.section.name,
+            'date': lesson.date,
+            'start_time': lesson.start_time,
+            'end_time': lesson.end_time,
+            'capacity': lesson.capacity,
+            'reserved': lesson.reserved,
+        } for lesson in upcoming_lessons],
+        'expired_subscriptions': [{
+            'user': subscription.user.email,
+            'section': subscription.section.name,
+            'end_date': subscription.end_date,
+        } for subscription in expired_subscriptions]
+    })

@@ -11,11 +11,10 @@ from django.conf import settings
 from django.utils.http import urlsafe_base64_decode
 
 class CustomUserSerializer(serializers.ModelSerializer):
-    children = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'date_joined', 'is_active', 'is_staff', 'role', 'children']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'date_joined', 'is_active', 'is_staff', 'role']
 
     def update(self, instance, validated_data):
         instance.first_name = validated_data.get('first_name', instance.first_name)
@@ -28,23 +27,34 @@ class CustomUserSerializer(serializers.ModelSerializer):
         return instance
 
 
+from rest_framework import serializers
+from .models import CustomUser
+
+from rest_framework import serializers
+from .models import CustomUser
+from .utils import send_verification_email, send_verification_sms
+from django.conf import settings
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
-    parent_id = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = CustomUser
-        fields = ('email', 'phone_number', 'first_name', 'last_name', 'iin', 'password', 'role', 'parent_id')
+        fields = ('email', 'phone_number', 'first_name', 'last_name', 'iin', 'password', 'role')
 
     def validate(self, data):
+        """
+        Ensure that at least either email or phone number is provided.
+        """
         if not data.get('email') and not data.get('phone_number'):
             raise serializers.ValidationError("Either email or phone number must be provided.")
         return data
 
     def create(self, validated_data):
-        parent_id = validated_data.pop('parent_id', None)
         password = validated_data.pop('password')
+        role = validated_data.get('role', 'USER')
 
+        # Создаем пользователя
         user = CustomUser.objects.create_user(
             email=validated_data.get('email'),
             phone_number=validated_data.get('phone_number'),
@@ -52,20 +62,20 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name'],
             iin=validated_data['iin'],
             password=password,
-            role=validated_data['role'],
-            is_active=False,  
+            role=role
         )
 
-        if parent_id:
-            parent = CustomUser.objects.get(id=parent_id)
-            user.parent = parent
-            user.save()
+        # Если роль ADMIN, то устанавливаем флаг is_staff
+        if role == 'ADMIN':
+            user.is_staff = True
 
+        # Сохраняем пользователя с обновленным статусом
+        user.save()
+
+        # Отправляем соответствующее подтверждение по email или SMS
         if user.email:
-            # If email is provided, send verification email
             send_verification_email(user, self.context['request'])
         elif user.phone_number:
-            # If phone number is provided, send SMS verification code
             send_verification_sms(user)
 
         return user
@@ -74,7 +84,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ('id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'role')  
+        fields = ('id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'role', 'is_active', 'is_verified')  # Ensure these fields are included
 
 User = get_user_model()
 
@@ -135,6 +145,9 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from user.models import CustomUser
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from user.models import CustomUser
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -146,6 +159,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         password = attrs.get('password', None)
 
         try:
+            # Allow login by either email or phone number
             if '@' in email_or_phone:
                 user = CustomUser.objects.get(email=email_or_phone)
             else:
@@ -159,6 +173,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             return super().validate(attrs)
         else:
             raise serializers.ValidationError("Invalid login credentials.")
+
 
 
 

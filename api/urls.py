@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CenterViewSet, SectionViewSet, SubscriptionViewSet, ScheduleViewSet, RecordViewSet, SectionCategoryViewSet, FeedbackViewSet
+from .views import CenterViewSet, SectionViewSet, SubscriptionViewSet, ScheduleViewSet, RecordViewSet, SectionCategoryViewSet, FeedbackViewSet, dashboard_metrics, dashboard_notifications, recent_activities
 
 router = DefaultRouter()
 router.register(r'centers', CenterViewSet)
@@ -14,4 +14,8 @@ router.register(r'feedbacks', FeedbackViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('attendance/', RecordViewSet.as_view({'post': 'confirm_attendance'})),
+    path('dashboard/metrics/', dashboard_metrics, name='dashboard-metrics'),
+    path('dashboard/recent-activities/', recent_activities, name='recent-activities'),
+    path('dashboard/notifications/', dashboard_notifications, name='dashboard-notifications'),
+    # Other routes...
 ]
