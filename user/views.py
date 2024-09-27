@@ -87,7 +87,7 @@ class VerifyEmailView(generics.GenericAPIView):
 
         if default_token_generator.check_token(user, token):
             user.is_verified = True
-            user.is_active = True  # Активируем пользователя
+            user.is_active = True  
             user.save()
             return Response({'detail': 'Аккаунт успешно подтвержден.'})
         else:
@@ -116,12 +116,6 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         serializer.save()
         return Response({"detail": "Пароль успешно сброшен."})
 
-from rest_framework import generics
-from rest_framework.response import Response
-from rest_framework import status
-from .models import CustomUser
-from .serializers import UserDetailSerializer
-
 class VerifySMSView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         phone_number = request.data.get('phone_number')
@@ -131,7 +125,7 @@ class VerifySMSView(generics.GenericAPIView):
             user = CustomUser.objects.get(phone_number=phone_number)
             if user.sms_code == sms_code:
                 user.is_verified = True
-                user.is_active = True  # Activate the account
+                user.is_active = True  
                 user.save()
                 return Response({'detail': 'Account successfully verified.'}, status=status.HTTP_200_OK)
             else:

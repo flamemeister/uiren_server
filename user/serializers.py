@@ -9,9 +9,10 @@ from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils.http import urlsafe_base64_decode
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 class CustomUserSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'first_name', 'last_name', 'phone_number', 'iin', 'date_joined', 'is_active', 'is_staff', 'role']
@@ -25,15 +26,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
-
-from rest_framework import serializers
-from .models import CustomUser
-
-from rest_framework import serializers
-from .models import CustomUser
-from .utils import send_verification_email, send_verification_sms
-from django.conf import settings
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -68,7 +60,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         # Automatically set is_staff and is_superuser for ADMIN role
         if role == 'ADMIN':
             user.is_staff = True
-            user.is_superuser = True  # Grant full superuser privileges
+            user.is_superuser = True  
 
         user.save()
 
@@ -79,8 +71,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             send_verification_sms(user)
 
         return user
-
-
 
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
@@ -142,13 +132,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.save()
         return user
 
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
-from user.models import CustomUser
-
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from user.models import CustomUser
-
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -160,7 +143,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         password = attrs.get('password', None)
 
         try:
-            # Allow login by either email or phone number
             if '@' in email_or_phone:
                 user = CustomUser.objects.get(email=email_or_phone)
             else:

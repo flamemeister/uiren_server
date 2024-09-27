@@ -5,6 +5,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 from django.conf import settings
+from twilio.rest import Client
 
 def generate_random_password(length=8):
     return ''.join(random.choices(string.digits, k=length))
@@ -20,16 +21,13 @@ def send_verification_email(user, request):
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
     )
-from twilio.rest import Client
-import random
-from django.conf import settings
 
 def generate_sms_code():
     return random.randint(100000, 999999)
 
 def send_verification_sms(user):
     sms_code = generate_sms_code()
-    user.sms_code = sms_code  # Store the code in the user's model (you need to add an sms_code field)
+    user.sms_code = sms_code  
     user.save()
 
     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)

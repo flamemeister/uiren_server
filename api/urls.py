@@ -17,5 +17,6 @@ urlpatterns = [
     path('dashboard/metrics/', dashboard_metrics, name='dashboard-metrics'),
     path('dashboard/recent-activities/', recent_activities, name='recent-activities'),
     path('dashboard/notifications/', dashboard_notifications, name='dashboard-notifications'),
-    # Other routes...
+    path('subscriptions/unactivated/', SubscriptionViewSet.as_view({'get': 'unactivated_subscriptions'})),
+    path('subscriptions/<int:pk>/activate/', SubscriptionViewSet.as_view({'post': 'activate_subscription'})),
 ]

@@ -9,6 +9,7 @@ from .pagination import StandardResultsSetPagination
 from django.utils import timezone
 from datetime import timedelta, datetime
 from rest_framework.exceptions import ValidationError
+from .permissions import IsStaffForCenter
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
@@ -21,40 +22,55 @@ class CenterViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'location', 'latitude', 'longitude']
     
     def get_queryset(self):
-        queryset = super().get_queryset()
-        new_param = self.request.query_params.get('new', None)
-        if new_param is not None:
-            try:
-                new_param = int(new_param)
-                if new_param <= 0:
-                    raise ValidationError('The "new" parameter must be a positive integer.')
-                queryset = queryset.order_by('-id')[:new_param]
-            except ValueError:
-                raise ValidationError('The "new" parameter must be an integer.')
-        return queryset
+        # Для STAFF отображаем только центры, к которым они привязаны
+        if self.request.user.role == 'STAFF':
+            return Center.objects.filter(users=self.request.user)
+        return super().get_queryset()
+
+    def create(self, request, *args, **kwargs):
+        # STAFF не может создавать новые центры
+        if self.request.user.role == 'STAFF':
+            return Response({'error': 'Вы не можете создавать центры.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().create(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        # STAFF может редактировать только те центры, к которым они привязаны
+        if self.request.user.role == 'STAFF':
+            center = self.get_object()
+            if not center.users.filter(id=self.request.user.id).exists():
+                raise ValidationError("Вы не можете редактировать этот центр.")
+        serializer.save()
+
 
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    permission_classes = [IsStaffForCenter]
     
     search_fields = ['name', 'description']
     filterset_fields = ['category', 'center']
     ordering_fields = ['name', 'category', 'description']
     
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        new_param = self.request.query_params.get('new', None)
-        if new_param is not None:
-            try:
-                new_param = int(new_param)
-                if new_param <= 0:
-                    raise ValidationError('The "new" parameter must be a positive integer.')
-                queryset = queryset.order_by('-id')[:new_param]
-            except ValueError:
-                raise ValidationError('The "new" parameter must be an integer.')
-        return queryset
+def get_queryset(self):
+    queryset = super().get_queryset()
+
+    if self.request.user.role == 'STAFF':
+        queryset = queryset.filter(center__users=self.request.user)
+
+    new_param = self.request.query_params.get('new', None)
+    if new_param is not None:
+        try:
+            new_param = int(new_param)
+            if new_param <= 0:
+                raise ValidationError('The "new" parameter must be a positive integer.')
+            queryset = queryset.order_by('-id')[:new_param]
+        except ValueError:
+            raise ValidationError('The "new" parameter must be an integer.')
+
+    return queryset
+
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
@@ -113,16 +129,28 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Subscription activated successfully.'}, status=status.HTTP_200_OK)
 
-
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    permission_classes = [IsStaffForCenter]  # Применяем кастомное разрешение
     
     filterset_fields = ['section', 'status', 'date', 'start_time', 'end_time', 'records__user__id', 'section__center']
     search_fields = ['section__name', 'section__center__name']
     ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
+    
+    def get_queryset(self):
+        if self.request.user.role == 'STAFF':
+            return Schedule.objects.filter(section__center__users=self.request.user)
+        return super().get_queryset()
+
+    def perform_create(self, serializer):
+        if self.request.user.role == 'STAFF':
+            section = serializer.validated_data['section']
+            if not section.center.users.filter(id=self.request.user.id).exists():
+                raise ValidationError("Вы не можете добавлять расписания для секций центров, к которым вы не привязаны.")
+        serializer.save()
 
 class RecordViewSet(viewsets.ModelViewSet):
     queryset = Record.objects.all()
@@ -367,3 +395,4 @@ def dashboard_notifications(request):
             'end_date': subscription.end_date,
         } for subscription in expired_subscriptions]
     })
+
