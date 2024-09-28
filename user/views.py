@@ -10,14 +10,18 @@ from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
+from .pagination import StandardResultsSetPagination
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+    pagination_class = StandardResultsSetPagination
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
+    pagination_class = StandardResultsSetPagination
     
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
@@ -58,6 +62,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class UserByTokenView(generics.RetrieveAPIView):
     permission_classes = [AllowAny]  
     serializer_class = UserDetailSerializer
+    pagination_class = StandardResultsSetPagination
 
     def get_object(self):
         return self.request.user
@@ -66,6 +71,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = [AllowAny]  
+    pagination_class = StandardResultsSetPagination
 
     def get_object(self):
         return self.request.user
@@ -74,6 +80,7 @@ User = get_user_model()
 
 class VerifyEmailView(generics.GenericAPIView):
     permission_classes = [AllowAny]
+    pagination_class = StandardResultsSetPagination
 
     def get(self, request, *args, **kwargs):
         uid = request.query_params.get('uid')
@@ -96,6 +103,7 @@ class VerifyEmailView(generics.GenericAPIView):
 class PasswordResetRequestView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
+    pagination_class = StandardResultsSetPagination
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -106,6 +114,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
 class PasswordResetConfirmView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
+    pagination_class = StandardResultsSetPagination
 
     def post(self, request, *args, **kwargs):
         request.data['uid'] = request.query_params.get('uid')
@@ -120,6 +129,7 @@ class VerifySMSView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         phone_number = request.data.get('phone_number')
         sms_code = request.data.get('sms_code')
+        pagination_class = StandardResultsSetPagination
 
         try:
             user = CustomUser.objects.get(phone_number=phone_number)

@@ -4,7 +4,7 @@ from geopy.geocoders import GoogleV3
 import qrcode
 import io
 from django.core.files.base import ContentFile
-from user.models import CustomUser  # Assume this exists
+from user.models import CustomUser
 from datetime import timedelta, datetime
 import calendar
 
@@ -34,24 +34,23 @@ class SectionCategory(models.Model):
 
 class Center(models.Model):
     name = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)  
+    location = models.CharField(max_length=255)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     image = models.ImageField(upload_to='center_images/', blank=True, null=True)
-    description = models.TextField(null=True, blank=True)  
-    about = models.TextField(null=True, blank=True)  
-    users = models.ManyToManyField(CustomUser, related_name='editable_centers')  
+    description = models.TextField(null=True, blank=True)
+    about = models.TextField(null=True, blank=True)
+    users = models.ManyToManyField(CustomUser, related_name='editable_centers')
 
     def save(self, *args, **kwargs):
         if not self.latitude or not self.longitude:
-            geolocator = GoogleV3(api_key=GOOGLE_API_KEY)  
+            geolocator = GoogleV3(api_key=GOOGLE_API_KEY)
             location = geolocator.geocode(self.location)
             if location:
                 self.latitude = location.latitude
                 self.longitude = location.longitude
             else:
                 raise ValueError(f"Unable to geocode location: {self.location}")
-
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -64,48 +63,40 @@ class Section(models.Model):
     center = models.ForeignKey('Center', related_name='sections', on_delete=models.CASCADE)
     description = models.TextField(null=True, blank=True)
     qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
-
-    weekly_pattern = models.JSONField(default=list)  
+    weekly_pattern = models.JSONField(default=list)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        
         if not self.qr_code:
             qr_data = {'section_id': self.id}
             qr_code_file = generate_qr_code(qr_data)
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
-            
             super().save(update_fields=['qr_code'])
-
         self.generate_schedule_for_next_month()
 
     def generate_schedule_for_next_month(self):
-        """
-        Generate static schedules for the next month based on the weekly pattern.
-        """
         today = timezone.now().date()
         first_day_of_next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
-        last_day_of_next_month = first_day_of_next_month.replace(day=calendar.monthrange(first_day_of_next_month.year, first_day_of_next_month.month)[1])
+        last_day_of_next_month = first_day_of_next_month.replace(
+            day=calendar.monthrange(first_day_of_next_month.year, first_day_of_next_month.month)[1])
 
-        Schedule.objects.filter(section=self, date__gte=first_day_of_next_month, date__lte=last_day_of_next_month).delete()
+        Schedule.objects.filter(section=self, date__gte=first_day_of_next_month,
+                                date__lte=last_day_of_next_month).delete()
 
         current_date = first_day_of_next_month
         while current_date <= last_day_of_next_month:
-            day_name = current_date.strftime('%A')  
-
+            day_name = current_date.strftime('%A')
             for pattern in self.weekly_pattern:
                 if pattern['day'] == day_name:
                     start_time = datetime.strptime(pattern['start_time'], '%H:%M').time()
                     end_time = datetime.strptime(pattern['end_time'], '%H:%M').time()
-
                     Schedule.objects.create(
                         section=self,
                         date=current_date,
                         start_time=start_time,
                         end_time=end_time,
-                        capacity=20,  
+                        capacity=20,
                     )
-
             current_date += timedelta(days=1)
 
     def __str__(self):
@@ -117,8 +108,8 @@ class Subscription(models.Model):
         ('6_MONTHS', '6 Months'),
         ('YEAR', 'Year')
     )
-    
-    name = models.CharField(max_length=255, default='Subscription')  
+
+    name = models.CharField(max_length=255, default='Subscription')
     type = models.CharField(max_length=255, choices=TYPE_CHOICES, default='6_MONTHS')
     user = models.ForeignKey(CustomUser, related_name='subscriptions', on_delete=models.CASCADE)
     start_date = models.DateTimeField(default=timezone.now)
@@ -159,7 +150,7 @@ class Schedule(models.Model):
         if self.reserved >= self.capacity:
             self.status = False
         else:
-            self.status = True 
+            self.status = True
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -186,8 +177,7 @@ class Feedback(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='feedbacks')
     text = models.TextField()
     stars = models.IntegerField(choices=RATING_CHOICES)
-    center = models.ForeignKey('Center', on_delete=models.CASCADE, related_name='feedbacks')  
-
+    center = models.ForeignKey('Center', on_delete=models.CASCADE, related_name='feedbacks')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

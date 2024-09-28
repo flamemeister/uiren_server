@@ -9,7 +9,7 @@ from .pagination import StandardResultsSetPagination
 from django.utils import timezone
 from datetime import timedelta, datetime
 from rest_framework.exceptions import ValidationError
-from .permissions import IsStaffForCenter
+
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
@@ -22,23 +22,33 @@ class CenterViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'location', 'latitude', 'longitude']
     
     def get_queryset(self):
-        # Для STAFF отображаем только центры, к которым они привязаны
+        queryset = super().get_queryset()
+        new_param = self.request.query_params.get('new', None)
+
+        # Role management: If user is Staff, filter centers they are assigned to
         if self.request.user.role == 'STAFF':
-            return Center.objects.filter(users=self.request.user)
-        return super().get_queryset()
+            queryset = queryset.filter(users=self.request.user)
+
+        if new_param is not None:
+            try:
+                new_param = int(new_param)
+                if new_param <= 0:
+                    raise ValidationError('The "new" parameter must be a positive integer.')
+                queryset = queryset.order_by('-id')[:new_param]
+            except ValueError:
+                raise ValidationError('The "new" parameter must be an integer.')
+        return queryset
 
     def create(self, request, *args, **kwargs):
-        # STAFF не может создавать новые центры
-        if self.request.user.role == 'STAFF':
-            return Response({'error': 'Вы не можете создавать центры.'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role != 'ADMIN':
+            return Response({'error': 'You are not allowed to create centers.'}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
     def perform_update(self, serializer):
-        # STAFF может редактировать только те центры, к которым они привязаны
         if self.request.user.role == 'STAFF':
             center = self.get_object()
             if not center.users.filter(id=self.request.user.id).exists():
-                raise ValidationError("Вы не можете редактировать этот центр.")
+                raise ValidationError("You are not allowed to edit this center.")
         serializer.save()
 
 
@@ -47,35 +57,42 @@ class SectionViewSet(viewsets.ModelViewSet):
     serializer_class = SectionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [IsStaffForCenter]
     
     search_fields = ['name', 'description']
     filterset_fields = ['category', 'center']
     ordering_fields = ['name', 'category', 'description']
     
-def get_queryset(self):
-    queryset = super().get_queryset()
+    def get_queryset(self):
+        queryset = super().get_queryset()
 
-    if self.request.user.role == 'STAFF':
-        queryset = queryset.filter(center__users=self.request.user)
+        # Role management: If user is Staff, filter sections they are assigned to
+        if self.request.user.role == 'STAFF':
+            queryset = queryset.filter(center__users=self.request.user)
 
-    new_param = self.request.query_params.get('new', None)
-    if new_param is not None:
-        try:
-            new_param = int(new_param)
-            if new_param <= 0:
-                raise ValidationError('The "new" parameter must be a positive integer.')
-            queryset = queryset.order_by('-id')[:new_param]
-        except ValueError:
-            raise ValidationError('The "new" parameter must be an integer.')
+        new_param = self.request.query_params.get('new', None)
+        if new_param is not None:
+            try:
+                new_param = int(new_param)
+                if new_param <= 0:
+                    raise ValidationError('The "new" parameter must be a positive integer.')
+                queryset = queryset.order_by('-id')[:new_param]
+            except ValueError:
+                raise ValidationError('The "new" parameter must be an integer.')
+        return queryset
 
-    return queryset
+    def perform_update(self, serializer):
+        if self.request.user.role == 'STAFF':
+            section = self.get_object()
+            if not section.center.users.filter(id=self.request.user.id).exists():
+                raise ValidationError("You are not allowed to edit this section.")
+        serializer.save()
 
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
     pagination_class = StandardResultsSetPagination
+
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
@@ -87,17 +104,20 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     ordering_fields = ['start_date', 'end_date']
 
     def get_queryset(self):
-        queryset = Subscription.objects.filter(user=self.request.user)
-        current_datetime = timezone.now()
-        queryset.filter(end_date__lt=current_datetime).update(is_active=False)
-        return queryset
+        # Role management: Admin can view all subscriptions, others can only see their own
+        if self.request.user.role == 'ADMIN':
+            return Subscription.objects.all()
+        return Subscription.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)  # Allow PATCH (partial update)
+        partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        # Role management: Allow users to update only their own subscriptions
+        if self.request.user.role != 'ADMIN' and instance.user != self.request.user:
+            return Response({'error': 'You are not allowed to update this subscription.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -105,20 +125,22 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.save()
-        # Update is_active based on end_date
         if instance.end_date < timezone.now():
             instance.is_active = False
             instance.save()
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def unactivated_subscriptions(self, request):
-        # Return all unactivated subscriptions
+        if self.request.user.role != 'ADMIN':
+            return Response({'error': 'You are not allowed to view unactivated subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
         unactivated_subs = Subscription.objects.filter(is_activated_by_admin=False)
         serializer = self.get_serializer(unactivated_subs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def activate_subscription(self, request, pk=None):
+        if self.request.user.role != 'ADMIN':
+            return Response({'error': 'You are not allowed to activate subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
         try:
             subscription = Subscription.objects.get(pk=pk)
         except Subscription.DoesNotExist:
@@ -129,28 +151,25 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Subscription activated successfully.'}, status=status.HTTP_200_OK)
 
+
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [IsStaffForCenter]  # Применяем кастомное разрешение
     
     filterset_fields = ['section', 'status', 'date', 'start_time', 'end_time', 'records__user__id', 'section__center']
     search_fields = ['section__name', 'section__center__name']
     ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
-    
+
     def get_queryset(self):
+        # Role management: Staff can view schedules for their own centers
         if self.request.user.role == 'STAFF':
             return Schedule.objects.filter(section__center__users=self.request.user)
+        elif self.request.user.role == 'ADMIN':
+            return Schedule.objects.all()
         return super().get_queryset()
 
-    def perform_create(self, serializer):
-        if self.request.user.role == 'STAFF':
-            section = serializer.validated_data['section']
-            if not section.center.users.filter(id=self.request.user.id).exists():
-                raise ValidationError("Вы не можете добавлять расписания для секций центров, к которым вы не привязаны.")
-        serializer.save()
 
 class RecordViewSet(viewsets.ModelViewSet):
     queryset = Record.objects.all()
@@ -163,7 +182,38 @@ class RecordViewSet(viewsets.ModelViewSet):
     ordering_fields = ['schedule__start_time', 'attended']
 
     def get_queryset(self):
+        # Role management: Admin can view all records, users can only view their own
+        if self.request.user.role == 'ADMIN':
+            return Record.objects.all()
         return Record.objects.filter(user=self.request.user)
+    
+    @action(detail=False, methods=['get'], url_path='user-records/(?P<user_id>\d+)', permission_classes=[IsAuthenticated])
+    def user_records(self, request, user_id=None):
+        """
+        Custom action to return all records for a specific user by user ID.
+        Only Admin and Staff users can access this action.
+        """
+        # Check if the logged-in user is Admin or Staff
+        if request.user.role not in ['ADMIN', 'STAFF']:
+            return Response({'error': 'You do not have permission to access user records.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Check if the user exists
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # For Admin: return all records for the user
+        if request.user.role == 'ADMIN':
+            records = Record.objects.filter(user=user)
+        
+        # For Staff: return records related to sections they are assigned to
+        elif request.user.role == 'STAFF':
+            records = Record.objects.filter(user=user, schedule__section__center__users=request.user)
+        
+        # Serialize and return the records
+        serializer = self.get_serializer(records, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         user = request.user
@@ -180,16 +230,13 @@ class RecordViewSet(viewsets.ModelViewSet):
         except Subscription.DoesNotExist:
             return Response({'error': 'You do not have a valid subscription.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if the subscription has been activated by the admin
         if not subscription.is_activated_by_admin:
             return Response({'error': 'Your subscription has not been activated by an admin.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check subscription expiry
         current_datetime = timezone.now()
         if subscription.end_date < current_datetime:
             return Response({'error': 'Your subscription has expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Prevent multiple reservations for overlapping schedules
         schedule_start_datetime = datetime.combine(schedule.date, schedule.start_time)
         overlapping_records = Record.objects.filter(
             user=user,
@@ -248,7 +295,7 @@ class RecordViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_records(self, request):
-        record_type = request.query_params.get('type', 'all')  # 'past', 'current', 'future', 'all'
+        record_type = request.query_params.get('type', 'all')
         current_datetime = timezone.now()
         records = self.get_queryset()
 
@@ -269,6 +316,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
 class FeedbackViewSet(viewsets.ModelViewSet):
     queryset = Feedback.objects.all()
     serializer_class = FeedbackSerializer
@@ -282,6 +330,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
         if user_feedback_only:
             return Feedback.objects.filter(user=self.request.user)
         return super().get_queryset()
+
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -298,20 +347,11 @@ def dashboard_metrics(request):
     today = timezone.now().date()
     start_of_week = today - timedelta(days=today.weekday())
     
-    # Total Users
     total_users = CustomUser.objects.count()
-
-    # Active Subscriptions
     active_subscriptions = Subscription.objects.filter(is_active=True).count()
-
-    # Total Centers
     total_centers = Center.objects.count()
-
-    # Lessons Today or This Week
     lessons_today = Schedule.objects.filter(date=today).count()
     lessons_this_week = Schedule.objects.filter(date__gte=start_of_week, date__lte=today + timedelta(days=6)).count()
-
-    # Feedback Count (if applicable)
     feedback_count = Feedback.objects.count()
 
     return Response({
@@ -323,22 +363,11 @@ def dashboard_metrics(request):
         'feedback_count': feedback_count,
     })
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from user.models import CustomUser
-from api.models import Subscription
-from api.models import Feedback, Record
-from django.utils import timezone
 
 @api_view(['GET'])
 def recent_activities(request):
-    # Recent User Signups
     recent_signups = CustomUser.objects.order_by('-date_joined')[:5]
-
-    # Recent Feedback
     recent_feedback = Feedback.objects.order_by('-created_at')[:5]
-
-    # Recent Lesson Enrollments
     recent_enrollments = Record.objects.order_by('-id')[:5]
 
     return Response({
@@ -355,28 +384,19 @@ def recent_activities(request):
         } for feedback in recent_feedback],
         'recent_enrollments': [{
             'user': enrollment.user.email,
-            'section': enrollment.section.name,
-            'center': enrollment.schedule.center.name,
+            'section': enrollment.schedule.section.name,
+            'center': enrollment.schedule.section.center.name,
             'date': enrollment.schedule.date,
             'attended': enrollment.attended,
         } for enrollment in recent_enrollments],
     })
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.utils import timezone
-from api.models import Subscription
-from api.models import Schedule
-from datetime import timedelta
 
 @api_view(['GET'])
 def dashboard_notifications(request):
     today = timezone.now().date()
 
-    # Upcoming Lessons within the next 7 days
     upcoming_lessons = Schedule.objects.filter(date__gte=today, date__lte=today + timedelta(days=7))
-
-    # Expired Subscriptions
     expired_subscriptions = Subscription.objects.filter(end_date__lt=today, is_active=False)
 
     return Response({
@@ -395,4 +415,3 @@ def dashboard_notifications(request):
             'end_date': subscription.end_date,
         } for subscription in expired_subscriptions]
     })
-
