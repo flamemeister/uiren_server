@@ -25,7 +25,7 @@ class CenterViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         new_param = self.request.query_params.get('new', None)
 
-        if self.request.user.role == 'STAFF':
+        if self.request.user.is_authenticated and self.request.user.role == 'STAFF':
             queryset = queryset.filter(users=self.request.user)
 
         if new_param is not None:
@@ -50,7 +50,6 @@ class CenterViewSet(viewsets.ModelViewSet):
                 raise ValidationError("У вас нет прав для редактирования этого центра.")
         serializer.save()
 
-
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
@@ -64,7 +63,7 @@ class SectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        if self.request.user.role == 'STAFF':
+        if self.request.user.is_authenticated and self.request.user.role == 'STAFF':
             queryset = queryset.filter(center__users=self.request.user)
 
         new_param = self.request.query_params.get('new', None)
@@ -84,6 +83,7 @@ class SectionViewSet(viewsets.ModelViewSet):
             if not section.center.users.filter(id=self.request.user.id).exists():
                 raise ValidationError("У вас нет прав для редактирования этого раздела.")
         serializer.save()
+
 
 
 class SectionCategoryViewSet(viewsets.ModelViewSet):
