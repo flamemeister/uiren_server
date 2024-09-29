@@ -25,7 +25,6 @@ class CenterViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         new_param = self.request.query_params.get('new', None)
 
-        # Role management: If user is Staff, filter centers they are assigned to
         if self.request.user.role == 'STAFF':
             queryset = queryset.filter(users=self.request.user)
 
@@ -33,22 +32,22 @@ class CenterViewSet(viewsets.ModelViewSet):
             try:
                 new_param = int(new_param)
                 if new_param <= 0:
-                    raise ValidationError('The "new" parameter must be a positive integer.')
+                    raise ValidationError('Параметр "new" должен быть положительным целым числом.')
                 queryset = queryset.order_by('-id')[:new_param]
             except ValueError:
-                raise ValidationError('The "new" parameter must be an integer.')
+                raise ValidationError('Параметр "new" должен быть целым числом.')
         return queryset
 
     def create(self, request, *args, **kwargs):
         if request.user.role != 'ADMIN':
-            return Response({'error': 'You are not allowed to create centers.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'У вас нет прав для создания центров.'}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
     def perform_update(self, serializer):
         if self.request.user.role == 'STAFF':
             center = self.get_object()
             if not center.users.filter(id=self.request.user.id).exists():
-                raise ValidationError("You are not allowed to edit this center.")
+                raise ValidationError("У вас нет прав для редактирования этого центра.")
         serializer.save()
 
 
@@ -65,7 +64,6 @@ class SectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        # Role management: If user is Staff, filter sections they are assigned to
         if self.request.user.role == 'STAFF':
             queryset = queryset.filter(center__users=self.request.user)
 
@@ -74,17 +72,17 @@ class SectionViewSet(viewsets.ModelViewSet):
             try:
                 new_param = int(new_param)
                 if new_param <= 0:
-                    raise ValidationError('The "new" parameter must be a positive integer.')
+                    raise ValidationError('Параметр "new" должен быть положительным целым числом.')
                 queryset = queryset.order_by('-id')[:new_param]
             except ValueError:
-                raise ValidationError('The "new" parameter must be an integer.')
+                raise ValidationError('Параметр "new" должен быть целым числом.')
         return queryset
 
     def perform_update(self, serializer):
         if self.request.user.role == 'STAFF':
             section = self.get_object()
             if not section.center.users.filter(id=self.request.user.id).exists():
-                raise ValidationError("You are not allowed to edit this section.")
+                raise ValidationError("У вас нет прав для редактирования этого раздела.")
         serializer.save()
 
 
@@ -104,7 +102,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     ordering_fields = ['start_date', 'end_date']
 
     def get_queryset(self):
-        # Role management: Admin can view all subscriptions, others can only see their own
         if self.request.user.role == 'ADMIN':
             return Subscription.objects.all()
         return Subscription.objects.filter(user=self.request.user)
@@ -115,9 +112,8 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        # Role management: Allow users to update only their own subscriptions
         if self.request.user.role != 'ADMIN' and instance.user != self.request.user:
-            return Response({'error': 'You are not allowed to update this subscription.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'У вас нет прав для обновления этого абонемента.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -132,7 +128,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def unactivated_subscriptions(self, request):
         if self.request.user.role != 'ADMIN':
-            return Response({'error': 'You are not allowed to view unactivated subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'У вас нет прав для просмотра неактивированных абонементов.'}, status=status.HTTP_403_FORBIDDEN)
         unactivated_subs = Subscription.objects.filter(is_activated_by_admin=False)
         serializer = self.get_serializer(unactivated_subs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -140,16 +136,16 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def activate_subscription(self, request, pk=None):
         if self.request.user.role != 'ADMIN':
-            return Response({'error': 'You are not allowed to activate subscriptions.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'У вас нет прав для активации абонементов.'}, status=status.HTTP_403_FORBIDDEN)
         try:
             subscription = Subscription.objects.get(pk=pk)
         except Subscription.DoesNotExist:
-            return Response({'error': 'Subscription does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Абонемент не существует.'}, status=status.HTTP_404_NOT_FOUND)
 
         subscription.is_activated_by_admin = True
         subscription.save()
 
-        return Response({'message': 'Subscription activated successfully.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Абонемент успешно активирован.'}, status=status.HTTP_200_OK)
 
 
 class ScheduleViewSet(viewsets.ModelViewSet):
@@ -163,7 +159,6 @@ class ScheduleViewSet(viewsets.ModelViewSet):
     ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
 
     def get_queryset(self):
-        # Role management: Staff can view schedules for their own centers
         if self.request.user.role == 'STAFF':
             return Schedule.objects.filter(section__center__users=self.request.user)
         elif self.request.user.role == 'ADMIN':
@@ -177,41 +172,31 @@ class RecordViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['user', 'schedule', 'attended', 'subscription']
+    filterset_fields = ['user', 'schedule', 'attended', 'subscription', 'schedule__section']
     search_fields = ['schedule__section__name', 'user__email']
     ordering_fields = ['schedule__start_time', 'attended']
 
     def get_queryset(self):
-        # Role management: Admin can view all records, users can only view their own
         if self.request.user.role == 'ADMIN':
             return Record.objects.all()
         return Record.objects.filter(user=self.request.user)
     
     @action(detail=False, methods=['get'], url_path='user-records/(?P<user_id>\d+)', permission_classes=[IsAuthenticated])
     def user_records(self, request, user_id=None):
-        """
-        Custom action to return all records for a specific user by user ID.
-        Only Admin and Staff users can access this action.
-        """
-        # Check if the logged-in user is Admin or Staff
         if request.user.role not in ['ADMIN', 'STAFF']:
-            return Response({'error': 'You do not have permission to access user records.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'У вас нет прав для просмотра записей этого пользователя.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Check if the user exists
         try:
             user = CustomUser.objects.get(id=user_id)
         except CustomUser.DoesNotExist:
-            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Пользователь не найден.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # For Admin: return all records for the user
         if request.user.role == 'ADMIN':
             records = Record.objects.filter(user=user)
         
-        # For Staff: return records related to sections they are assigned to
         elif request.user.role == 'STAFF':
             records = Record.objects.filter(user=user, schedule__section__center__users=request.user)
         
-        # Serialize and return the records
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -223,19 +208,19 @@ class RecordViewSet(viewsets.ModelViewSet):
         try:
             schedule = Schedule.objects.get(id=schedule_id)
         except Schedule.DoesNotExist:
-            return Response({'error': 'Schedule does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Расписание не существует.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             subscription = Subscription.objects.get(id=subscription_id, user=user, is_active=True)
         except Subscription.DoesNotExist:
-            return Response({'error': 'You do not have a valid subscription.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'У вас нет действующего абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not subscription.is_activated_by_admin:
-            return Response({'error': 'Your subscription has not been activated by an admin.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Ваш абонемент не был активирован администратором.'}, status=status.HTTP_400_BAD_REQUEST)
 
         current_datetime = timezone.now()
         if subscription.end_date < current_datetime:
-            return Response({'error': 'Your subscription has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Срок действия вашего абонемента истек.'}, status=status.HTTP_400_BAD_REQUEST)
 
         schedule_start_datetime = datetime.combine(schedule.date, schedule.start_time)
         overlapping_records = Record.objects.filter(
@@ -248,11 +233,11 @@ class RecordViewSet(viewsets.ModelViewSet):
             )
         )
 
-        if overlapping_records.exists():
-            return Response({'error': 'You cannot apply for overlapping schedules using the same subscription.'}, status=status.HTTP_400_BAD_REQUEST)
-
         if Record.objects.filter(user=user, schedule=schedule, subscription=subscription).exists():
-            return Response({'error': 'You have already applied for this schedule with this subscription.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Вы уже записаны на это занятие с этим абонементом.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if overlapping_records.exists():
+            return Response({'error': 'Вы не можете записаться на пересекающиеся занятия с использованием одного абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
 
         record = Record.objects.create(
             user=user,
@@ -269,11 +254,11 @@ class RecordViewSet(viewsets.ModelViewSet):
     def unconfirmed_records(self, request):
         section_id = request.query_params.get('section_id')
         if not section_id:
-            return Response({'error': 'Section ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Требуется идентификатор раздела.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             section = Section.objects.get(id=section_id)
         except Section.DoesNotExist:
-            return Response({'error': 'Section not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Раздел не найден.'}, status=status.HTTP_404_NOT_FOUND)
         records = Record.objects.filter(user=request.user, schedule__section=section, attended=False)
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -282,16 +267,16 @@ class RecordViewSet(viewsets.ModelViewSet):
     def confirm_attendance(self, request):
         record_id = request.data.get('record_id')
         if not record_id:
-            return Response({'error': 'Record ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Требуется идентификатор записи.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             record = Record.objects.get(id=record_id, user=request.user)
         except Record.DoesNotExist:
-            return Response({'error': 'Record not found or you do not have access to this record.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Запись не найдена или у вас нет доступа к этой записи.'}, status=status.HTTP_404_NOT_FOUND)
         if record.attended:
-            return Response({'error': 'You have already attended this lesson.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Вы уже посетили это занятие.'}, status=status.HTTP_400_BAD_REQUEST)
         record.attended = True
         record.save()
-        return Response({'message': 'Attendance confirmed successfully.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Посещение успешно подтверждено.'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_records(self, request):
