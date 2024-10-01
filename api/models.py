@@ -56,6 +56,9 @@ class Center(models.Model):
     def __str__(self):
         return self.name
 
+from datetime import timedelta, datetime
+import calendar
+
 class Section(models.Model):
     name = models.CharField(max_length=255)
     category = models.ForeignKey('SectionCategory', related_name='sections', on_delete=models.CASCADE)
@@ -72,17 +75,19 @@ class Section(models.Model):
             qr_code_file = generate_qr_code(qr_data)
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             super().save(update_fields=['qr_code'])
-        self.generate_schedule_for_next_month()
+        self.generate_static_schedule_for_next_month()
 
-    def generate_schedule_for_next_month(self):
+    def generate_static_schedule_for_next_month(self):
         today = timezone.now().date()
         first_day_of_next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
         last_day_of_next_month = first_day_of_next_month.replace(
             day=calendar.monthrange(first_day_of_next_month.year, first_day_of_next_month.month)[1])
 
+        # Удаление предыдущего расписания для следующего месяца
         Schedule.objects.filter(section=self, date__gte=first_day_of_next_month,
                                 date__lte=last_day_of_next_month).delete()
 
+        # Генерация статичного расписания
         current_date = first_day_of_next_month
         while current_date <= last_day_of_next_month:
             day_name = current_date.strftime('%A')
@@ -90,17 +95,20 @@ class Section(models.Model):
                 if pattern['day'] == day_name:
                     start_time = datetime.strptime(pattern['start_time'], '%H:%M').time()
                     end_time = datetime.strptime(pattern['end_time'], '%H:%M').time()
+
+                    # Создаем запись в расписании
                     Schedule.objects.create(
                         section=self,
                         date=current_date,
                         start_time=start_time,
                         end_time=end_time,
-                        capacity=20,
+                        capacity=20,  # Примерное значение, можно менять
                     )
             current_date += timedelta(days=1)
 
     def __str__(self):
         return self.name
+
 
 class Subscription(models.Model):
     TYPE_CHOICES = (
