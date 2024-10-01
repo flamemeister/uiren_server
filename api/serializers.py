@@ -23,7 +23,8 @@ class SectionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         weekly_pattern = validated_data.pop('weekly_pattern')
-        section = Section.objects.create(weekly_pattern=weekly_pattern, **validated_data)
+        section = Section.objects.create(**validated_data)
+
         self._generate_schedules_for_next_month(section, weekly_pattern)
         return section
 
@@ -33,11 +34,21 @@ class SectionSerializer(serializers.ModelSerializer):
         last_day_of_next_month = first_day_of_next_month.replace(
             day=calendar.monthrange(first_day_of_next_month.year, first_day_of_next_month.month)[1])
 
+        day_mapping = {
+            'Понедельник': 'Monday',
+            'Вторник': 'Tuesday',
+            'Среда': 'Wednesday',
+            'Четверг': 'Thursday',
+            'Пятница': 'Friday',
+            'Суббота': 'Saturday',
+            'Воскресенье': 'Sunday'
+        }
+
         current_date = first_day_of_next_month
         while current_date <= last_day_of_next_month:
-            day_name = current_date.strftime('%A')
+            day_name = current_date.strftime('%A')  # Получаем день недели на английском
             for pattern in weekly_pattern:
-                if pattern['day'] == day_name:
+                if day_mapping.get(pattern['day']) == day_name:
                     start_time = pattern['start_time']
                     end_time = pattern['end_time']
                     Schedule.objects.create(
@@ -45,9 +56,21 @@ class SectionSerializer(serializers.ModelSerializer):
                         date=current_date,
                         start_time=start_time,
                         end_time=end_time,
-                        capacity=20,
+                        capacity=20,  
                     )
             current_date += timedelta(days=1)
+
+    def update(self, instance, validated_data):
+        weekly_pattern = validated_data.pop('weekly_pattern', None)
+        section = super().update(instance, validated_data)
+
+        if weekly_pattern:
+            # Удаляем старое расписание и создаем новое
+            section.schedules.all().delete()
+            self._generate_schedules_for_next_month(section, weekly_pattern)
+
+        return section
+
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
