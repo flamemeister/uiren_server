@@ -14,6 +14,7 @@ router.register(r'feedbacks', FeedbackViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('attendance/', RecordViewSet.as_view({'post': 'confirm_attendance'})),
+    path('attendance/cancel/', RecordViewSet.as_view({'post': 'cancel_reservation'})), 
     path('dashboard/metrics/', dashboard_metrics, name='dashboard-metrics'),
     path('dashboard/recent-activities/', recent_activities, name='recent-activities'),
     path('dashboard/notifications/', dashboard_notifications, name='dashboard-notifications'),

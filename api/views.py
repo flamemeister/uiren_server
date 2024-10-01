@@ -300,6 +300,25 @@ class RecordViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def cancel_reservation(self, request):
+        record_id = request.data.get('record_id')
+        
+        if not record_id:
+            return Response({'error': 'Требуется идентификатор записи.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            record = Record.objects.get(id=record_id, user=request.user)
+        except Record.DoesNotExist:
+            return Response({'error': 'Запись не найдена или у вас нет доступа к этой записи.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if record.is_canceled:
+            return Response({'error': 'Вы уже отменили это резервирование.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        record.cancel_reservation()
+        
+        return Response({'message': 'Резервирование успешно отменено.'}, status=status.HTTP_200_OK)
 
 
 class FeedbackViewSet(viewsets.ModelViewSet):

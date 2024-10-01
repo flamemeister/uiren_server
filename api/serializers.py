@@ -66,7 +66,7 @@ class RecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Record
-        fields = ['id', 'user', 'schedule', 'attended', 'subscription']
+        fields = ['id', 'user', 'schedule', 'attended', 'subscription', 'is_canceled']
         read_only_fields = ['user', 'attended', 'subscription']
 
 class SectionCategorySerializer(serializers.ModelSerializer):

@@ -161,6 +161,15 @@ class Record(models.Model):
     schedule = models.ForeignKey(Schedule, related_name='records', on_delete=models.CASCADE)
     attended = models.BooleanField(default=False)
     subscription = models.ForeignKey(Subscription, related_name='records', on_delete=models.CASCADE)
+    is_canceled = models.BooleanField(default=False)  
+
+    def cancel_reservation(self):
+        if not self.is_canceled:  
+            if self.schedule.reserved > 0:
+                self.schedule.reserved -= 1
+                self.schedule.save()
+            self.is_canceled = True  
+            self.save()
 
     def __str__(self):
         return f"{self.user.email} - {self.schedule.section.name}"
