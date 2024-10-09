@@ -220,17 +220,21 @@ class RecordViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Ваш абонемент не был активирован администратором.'}, status=status.HTTP_400_BAD_REQUEST)
 
         current_datetime = timezone.now()
-        if subscription.end_date < current_datetime:
-            return Response({'error': 'Срок действия вашего абонемента истек.'}, status=status.HTTP_400_BAD_REQUEST)
+        schedule_datetime = timezone.make_aware(datetime.combine(schedule.date, schedule.start_time))
 
-        schedule_start_datetime = datetime.combine(schedule.date, schedule.start_time)
+        # Проверка: если до занятия больше 24 часов, запись не разрешена
+        time_difference = schedule_datetime - current_datetime
+        if time_difference > timedelta(hours=24):
+            return Response({'error': 'Вы не можете записаться на это занятие, так как до его начала больше 24 часов.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Проверка на пересекающиеся записи
         overlapping_records = Record.objects.filter(
             user=user,
             subscription=subscription,
             schedule__date=schedule.date,
             schedule__start_time__range=(
-                (schedule_start_datetime - timedelta(hours=1)).time(),
-                (schedule_start_datetime + timedelta(hours=1)).time()
+                (schedule_datetime - timedelta(hours=1)).time(),
+                (schedule_datetime + timedelta(hours=1)).time()
             )
         )
 
@@ -240,6 +244,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         if overlapping_records.exists():
             return Response({'error': 'Вы не можете записаться на пересекающиеся занятия с использованием одного абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Создание записи
         record = Record.objects.create(
             user=user,
             schedule=schedule,

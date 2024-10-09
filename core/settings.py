@@ -194,10 +194,18 @@ TWILIO_PHONE_NUMBER = '+1 661 426 8295'
 TWILIO_WHATSAPP_FROM = 'whatsapp:+14155238886'
 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Ensure Redis is running
+# Настройки Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis для брокера сообщений
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Redis для хранения результатов задач
+CELERY_ACCEPT_CONTENT = ['json']  # Формат сообщений
+CELERY_TASK_SERIALIZER = 'json'   # Используем формат json для сериализации задач
+CELERY_RESULT_SERIALIZER = 'json' # Формат сериализации результатов
+
+# Настройки периодических задач (beat)
 CELERY_BEAT_SCHEDULE = {
     'notify_users_two_hours_before_lesson': {
-        'task': 'api.tasks.notify_users_two_hours_before_lesson',
-        'schedule': 60.0,  # Check every minute if there are lessons to notify
+        'task': 'api.tasks.notify_users_two_hours_before_lesson',  # Задача для уведомления пользователей
+        'schedule': 60.0,  # Задача будет запускаться каждые 60 секунд
     },
 }
+

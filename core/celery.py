@@ -2,14 +2,13 @@ from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery
 
-# Set the default Django settings module for the 'celery' program.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+# Устанавливаем настройки по умолчанию для Django для программы Celery
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')  # core — это название твоего проекта
 
 app = Celery('UIREN_SERVER')
 
-# Using a string here means the worker doesn't have to serialize
-# the configuration object to child processes.
+# Настройки Django для Celery
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load task modules from all registered Django app configs.
+# Автоматически находит и загружает задачи из всех приложений Django
 app.autodiscover_tasks()
