@@ -8,7 +8,7 @@ from user.models import CustomUser
 from datetime import timedelta, datetime
 import calendar
 
-GOOGLE_API_KEY = 'AIzaSyCN-x4jF1BZ9UoWD144d4vH4ocal-EDz5k'
+GOOGLE_API_KEY = 'AIzaSyBAVkETmTSFkRbC-Vix0DJ7HbjWYPQ8Xa8'
 
 def generate_qr_code(data):
     qr = qrcode.QRCode(

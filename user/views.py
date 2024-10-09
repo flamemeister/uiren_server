@@ -1,16 +1,27 @@
-
-
 from rest_framework import generics, viewsets, permissions, status
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
-from .models import CustomUser
-from .serializers import CustomUserSerializer, RegisterSerializer, UserDetailSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer
-from rest_framework.decorators import action
+from .models import CustomUser, DeviceToken
+from .serializers import DeviceTokenSerializer, CustomUserSerializer, RegisterSerializer, UserDetailSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
 from .pagination import StandardResultsSetPagination
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def register_device_token(request):
+    serializer = DeviceTokenSerializer(data=request.data)
+    if serializer.is_valid():
+        token = serializer.validated_data['token']
+        DeviceToken.objects.get_or_create(user=request.user, token=token)
+        return Response({'message': 'Device token registered successfully.'}, status=status.HTTP_200_OK)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -141,3 +152,30 @@ class VerifySMSView(generics.GenericAPIView):
                 return Response({'error': 'Invalid SMS code.'}, status=status.HTTP_400_BAD_REQUEST)
         except CustomUser.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+from rest_framework.permissions import IsAdminUser
+from rest_framework import status, generics
+from rest_framework.response import Response
+from .serializers import RegisterSerializer
+
+class AdminCreateStaffView(generics.CreateAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = RegisterSerializer
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        data['role'] = 'STAFF'
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.save()
+
+        user.is_verified = True
+        user.is_active = True
+        user.save()
+
+        return Response(
+            {"detail": "Staff user created successfully."},
+            status=status.HTTP_201_CREATED
+        )

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 
 class CustomUserManager(BaseUserManager):
@@ -71,7 +72,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_superuser = models.BooleanField(default=False)  
     is_verified = models.BooleanField(default=False)  
     date_joined = models.DateTimeField(default=timezone.now)
-    sms_code = models.CharField(max_length=6, null=True, blank=True)  
+    sms_code = models.CharField(max_length=6, null=True, blank=True) 
+    last_missed_lesson_time = models.DateTimeField(null=True, blank=True)
 
     objects = CustomUserManager()
 
@@ -80,3 +82,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email or self.phone_number
+    
+class DeviceToken(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='device_tokens', on_delete=models.CASCADE)
+    token = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.token}"

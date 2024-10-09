@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser
+from .models import CustomUser, DeviceToken
 from .utils import generate_random_password 
 from .utils import send_verification_email, send_verification_sms
 from django.contrib.auth.tokens import default_token_generator
@@ -11,6 +11,11 @@ from django.conf import settings
 from django.utils.http import urlsafe_base64_decode
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+
+class DeviceTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceToken
+        fields = ['token']
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:

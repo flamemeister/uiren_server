@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import UserViewSet, UserByTokenView, VerifyEmailView, UserProfileView, PasswordResetRequestView, PasswordResetConfirmView, VerifySMSView
+from .views import register_device_token, UserViewSet, UserByTokenView, VerifyEmailView, UserProfileView, PasswordResetRequestView, PasswordResetConfirmView, VerifySMSView, AdminCreateStaffView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
@@ -16,6 +16,8 @@ urlpatterns = [
     path('password-reset/', PasswordResetRequestView.as_view(), name='password_reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('verify-sms/', VerifySMSView.as_view(), name='verify-sms'),
+    path('register-device-token/', register_device_token, name='register-device-token'),
+    path('admin/create-staff/', AdminCreateStaffView.as_view(), name='admin-create-staff'),
 
 
     path('', include(router.urls)),
