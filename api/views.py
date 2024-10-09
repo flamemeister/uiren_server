@@ -9,6 +9,7 @@ from .pagination import StandardResultsSetPagination
 from django.utils import timezone
 from datetime import timedelta, datetime
 from rest_framework.exceptions import ValidationError
+from .tasks import notify_user_after_recording
 
 
 class CenterViewSet(viewsets.ModelViewSet):
@@ -248,6 +249,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         schedule.save()
 
         serializer = self.get_serializer(record)
+        notify_user_after_recording.delay(record.id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])

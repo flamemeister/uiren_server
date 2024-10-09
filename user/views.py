@@ -12,7 +12,6 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
 from .pagination import StandardResultsSetPagination
 
-
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     permission_classes = (AllowAny,)

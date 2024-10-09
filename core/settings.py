@@ -191,3 +191,13 @@ ALLOWED_HOSTS = ['*']
 TWILIO_ACCOUNT_SID = 'ACafca073ea179864768147efa9389f26e'
 TWILIO_AUTH_TOKEN = 'df0dbc6b76da612ebe7d12a9ef009b04'
 TWILIO_PHONE_NUMBER = '+1 661 426 8295'
+TWILIO_WHATSAPP_FROM = 'whatsapp:+14155238886'
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Ensure Redis is running
+CELERY_BEAT_SCHEDULE = {
+    'notify_users_two_hours_before_lesson': {
+        'task': 'api.tasks.notify_users_two_hours_before_lesson',
+        'schedule': 60.0,  # Check every minute if there are lessons to notify
+    },
+}
