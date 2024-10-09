@@ -173,9 +173,9 @@ class RecordViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['user', 'schedule', 'attended', 'subscription', 'schedule__section']
+    filterset_fields = ['user', 'schedule', 'attended', 'subscription', 'schedule__section', 'schedule__date']
     search_fields = ['schedule__section__name', 'user__email']
-    ordering_fields = ['schedule__start_time', 'attended']
+    ordering_fields = ['schedule__start_time', 'attended', 'schedule__date']
 
     def get_queryset(self):
         if self.request.user.role == 'ADMIN':
