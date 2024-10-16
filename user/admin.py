@@ -7,19 +7,19 @@ class UserAdmin(BaseUserAdmin):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
 
-    list_display = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'role', 'is_staff', 'is_blocked_until')
+    list_display = ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'role', 'is_staff')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'role')
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'phone_number', 'iin', 'parent')}),  # Добавляем поле parent
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Important dates', {'fields': ('last_login', 'date_joined', 'is_blocked_until')}),  
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),  
         ('Role', {'fields': ('role',)}),
     )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password1', 'password2', 'role', 'is_active', 'is_staff', 'is_superuser', 'is_blocked_until'),
+            'fields': ('email', 'first_name', 'last_name', 'phone_number', 'iin', 'password1', 'password2', 'role', 'is_active', 'is_staff', 'is_superuser'),
         }),
     )
     search_fields = ('email', 'first_name', 'last_name', 'phone_number', 'iin')

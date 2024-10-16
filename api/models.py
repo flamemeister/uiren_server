@@ -170,6 +170,7 @@ class Record(models.Model):
     attended = models.BooleanField(default=False)
     subscription = models.ForeignKey(Subscription, related_name='records', on_delete=models.CASCADE)
     is_canceled = models.BooleanField(default=False)  
+    notification_sent = models.BooleanField(default=False)  # New field
 
     def cancel_reservation(self):
         if not self.is_canceled:  

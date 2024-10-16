@@ -204,8 +204,9 @@ CELERY_RESULT_SERIALIZER = 'json' # Формат сериализации рез
 # Настройки периодических задач (beat)
 CELERY_BEAT_SCHEDULE = {
     'notify_users_two_hours_before_lesson': {
-        'task': 'api.tasks.notify_users_two_hours_before_lesson',  # Задача для уведомления пользователей
-        'schedule': 60.0,  # Задача будет запускаться каждые 60 секунд
+        'task': 'api.tasks.notify_users_two_hours_before_lesson',
+        'schedule': 60.0,  # Task runs every 15 minutes
     },
 }
+
 

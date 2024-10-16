@@ -73,10 +73,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_verified = models.BooleanField(default=False)  
     date_joined = models.DateTimeField(default=timezone.now)
     sms_code = models.CharField(max_length=6, null=True, blank=True) 
-    is_blocked_until = models.DateTimeField(null=True, blank=True)  # Поле для хранения времени окончания блокировки
-
-    def is_blocked(self):
-        return self.is_blocked_until and timezone.now() < self.is_blocked_until
 
     objects = CustomUserManager()
 
