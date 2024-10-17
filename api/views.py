@@ -11,7 +11,6 @@ from datetime import timedelta, datetime
 from rest_framework.exceptions import ValidationError
 from .tasks import notify_user_after_recording
 
-
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
@@ -85,13 +84,10 @@ class SectionViewSet(viewsets.ModelViewSet):
                 raise ValidationError("У вас нет прав для редактирования этого раздела.")
         serializer.save()
 
-
-
 class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
     pagination_class = StandardResultsSetPagination
-
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
@@ -133,6 +129,30 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         unactivated_subs = Subscription.objects.filter(is_activated_by_admin=False)
         serializer = self.get_serializer(unactivated_subs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def freeze(self, request, pk=None):
+        subscription = self.get_object()
+        freeze_days = request.data.get('freeze_days')
+
+        if not freeze_days or int(freeze_days) <= 0:
+            return Response({'error': 'Введите корректное количество дней для заморозки.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if subscription.is_frozen:
+            return Response({'error': 'Подписка уже заморожена.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        subscription.freeze(int(freeze_days))
+        return Response({'message': 'Подписка успешно заморожена.'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unfreeze(self, request, pk=None):
+        subscription = self.get_object()
+
+        if not subscription.is_frozen:
+            return Response({'error': 'Подписка не заморожена.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        subscription.unfreeze()
+        return Response({'message': 'Подписка успешно разморожена.'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def activate_subscription(self, request, pk=None):
@@ -147,7 +167,6 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         subscription.save()
 
         return Response({'message': 'Абонемент успешно активирован.'}, status=status.HTTP_200_OK)
-
 
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
@@ -165,7 +184,6 @@ class ScheduleViewSet(viewsets.ModelViewSet):
         elif self.request.user.role == 'ADMIN':
             return Schedule.objects.all()
         return super().get_queryset()
-
 
 class RecordViewSet(viewsets.ModelViewSet):
     queryset = Record.objects.all()
@@ -227,7 +245,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         if time_difference > timedelta(hours=24):
             return Response({'error': 'Вы не можете записаться на это занятие, так как до его начала больше 24 часов.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Проверка на пересекающиеся записи
+        # Проверка на пересекающиеся записи в одном центре (логика не изменена)
         overlapping_records = Record.objects.filter(
             user=user,
             subscription=subscription,
@@ -238,11 +256,24 @@ class RecordViewSet(viewsets.ModelViewSet):
             )
         )
 
-        if Record.objects.filter(user=user, schedule=schedule, subscription=subscription).exists():
-            return Response({'error': 'Вы уже записаны на это занятие с этим абонементом.'}, status=status.HTTP_400_BAD_REQUEST)
-        
         if overlapping_records.exists():
             return Response({'error': 'Вы не можете записаться на пересекающиеся занятия с использованием одного абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Проверка на запись в другой центр с разницей менее 1 часа
+        conflicting_records_in_other_centers = Record.objects.filter(
+            user=user,
+            schedule__date=schedule.date
+        ).exclude(
+            schedule__section__center=schedule.section.center  # Исключаем те же самые центры
+        ).filter(
+            schedule__start_time__range=(
+                (schedule_datetime - timedelta(hours=1)).time(),
+                (schedule_datetime + timedelta(hours=1)).time()
+            )
+        )
+
+        if conflicting_records_in_other_centers.exists():
+            return Response({'error': 'Вы не можете записаться на два занятия в разных центрах с разницей менее 1 часа.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Создание записи
         record = Record.objects.create(
@@ -256,6 +287,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(record)
         notify_user_after_recording.delay(record.id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def unconfirmed_records(self, request):

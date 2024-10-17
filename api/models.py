@@ -75,35 +75,34 @@ class Section(models.Model):
             qr_code_file = generate_qr_code(qr_data)
             self.qr_code.save(f'{self.name}_qr.png', qr_code_file, save=False)
             super().save(update_fields=['qr_code'])
-        self.generate_static_schedule_for_next_month()
+        self.generate_static_schedule_for_next_30_days()  # Вызов правильного метода
 
-    def generate_static_schedule_for_next_month(self):
+    def generate_static_schedule_for_next_30_days(self):
         today = timezone.now().date()
-        first_day_of_next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
-        last_day_of_next_month = first_day_of_next_month.replace(
-            day=calendar.monthrange(first_day_of_next_month.year, first_day_of_next_month.month)[1])
+        end_date = today + timedelta(days=30)  # Генерация расписания на следующие 30 дней
 
-        # Удаление предыдущего расписания для следующего месяца
-        Schedule.objects.filter(section=self, date__gte=first_day_of_next_month,
-                                date__lte=last_day_of_next_month).delete()
+        # Удаление предыдущего расписания для следующих 30 дней
+        Schedule.objects.filter(section=self, date__gte=today, date__lte=end_date).delete()
 
         # Генерация статичного расписания
-        current_date = first_day_of_next_month
-        while current_date <= last_day_of_next_month:
+        current_date = today
+        while current_date <= end_date:
             day_name = current_date.strftime('%A')
             for pattern in self.weekly_pattern:
                 if pattern['day'] == day_name:
-                    start_time = datetime.strptime(pattern['start_time'], '%H:%M').time()
-                    end_time = datetime.strptime(pattern['end_time'], '%H:%M').time()
+                    # Проходим по всем интервалам для текущего дня
+                    for interval in pattern['intervals']:
+                        start_time = datetime.strptime(interval['start_time'], '%H:%M').time()
+                        end_time = datetime.strptime(interval['end_time'], '%H:%M').time()
 
-                    # Создаем запись в расписании
-                    Schedule.objects.create(
-                        section=self,
-                        date=current_date,
-                        start_time=start_time,
-                        end_time=end_time,
-                        capacity=20,  # Примерное значение, можно менять
-                    )
+                        # Создаем запись в расписании
+                        Schedule.objects.create(
+                            section=self,
+                            date=current_date,
+                            start_time=start_time,
+                            end_time=end_time,
+                            capacity=20,  # Примерное значение, можно менять
+                        )
             current_date += timedelta(days=1)
 
     def __str__(self):
@@ -125,6 +124,10 @@ class Subscription(models.Model):
     is_active = models.BooleanField(default=True)
     is_purchased = models.BooleanField(default=False)
     is_activated_by_admin = models.BooleanField(default=False)
+    is_frozen = models.BooleanField(default=False)
+    frozen_start_date = models.DateTimeField(null=True, blank=True)
+    frozen_end_date = models.DateTimeField(null=True, blank=True)
+    remaining_days = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
         if not self.start_date:
@@ -139,8 +142,34 @@ class Subscription(models.Model):
         if not self.end_date:
             self.end_date = self.start_date + timezone.timedelta(days=duration_mapping[self.type])
 
-        self.is_active = self.end_date > timezone.now()
+        if self.is_frozen and self.frozen_end_date and self.frozen_end_date <= timezone.now():
+            self.unfreeze()
+
+        self.is_active = not self.is_frozen and self.end_date > timezone.now()
         super().save(*args, **kwargs)
+
+    def freeze(self, freeze_days):
+        """Заморозить подписку на определенное количество дней."""
+        if not self.is_frozen:
+            self.is_frozen = True
+            self.frozen_start_date = timezone.now()
+            self.frozen_end_date = timezone.now() + timedelta(days=freeze_days)
+            self.remaining_days = (self.end_date - timezone.now()).days
+            self.save()
+
+    def unfreeze(self):
+        """Разморозить подписку."""
+        if self.is_frozen:
+            self.is_frozen = False
+            self.end_date = timezone.now() + timedelta(days=self.remaining_days)
+            self.frozen_start_date = None
+            self.frozen_end_date = None
+            self.remaining_days = 0
+            self.save()
+
+
+        # self.is_active = self.end_date > timezone.now()
+        # super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} - {self.user.email} - {self.type}"

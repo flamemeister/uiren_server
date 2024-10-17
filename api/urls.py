@@ -20,4 +20,6 @@ urlpatterns = [
     path('dashboard/notifications/', dashboard_notifications, name='dashboard-notifications'),
     path('subscriptions/unactivated/', SubscriptionViewSet.as_view({'get': 'unactivated_subscriptions'})),
     path('subscriptions/<int:pk>/activate/', SubscriptionViewSet.as_view({'post': 'activate_subscription'})),
+    path('subscriptions/<int:pk>/freeze/', SubscriptionViewSet.as_view({'post': 'freeze'}), name='subscription-freeze'),
+    path('subscriptions/<int:pk>/unfreeze/', SubscriptionViewSet.as_view({'post': 'unfreeze'}), name='subscription-unfreeze'),
 ]
