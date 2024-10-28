@@ -260,11 +260,17 @@ class RecordViewSet(viewsets.ModelViewSet):
         if time_difference > timedelta(hours=24):
             return Response({'error': 'Вы не можете записаться на это занятие, так как до его начала больше 24 часов.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Проверка на пересекающиеся записи в одном центре (логика не изменена)
+        # Получаем центр текущего расписания
+        current_center = schedule.section.center
+
+        # Проверка на пересекающиеся записи в разных центрах
         overlapping_records = Record.objects.filter(
             user=user,
             subscription=subscription,
-            schedule__date=schedule.date,
+            schedule__date=schedule.date
+        ).exclude(
+            schedule__section__center=current_center
+        ).filter(
             schedule__start_time__range=(
                 (schedule_datetime - timedelta(hours=1)).time(),
                 (schedule_datetime + timedelta(hours=1)).time()
@@ -272,14 +278,26 @@ class RecordViewSet(viewsets.ModelViewSet):
         )
 
         if overlapping_records.exists():
-            return Response({'error': 'Вы не можете записаться на пересекающиеся занятия с использованием одного абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Вы не можете записаться на пересекающиеся занятия в разных центрах с использованием одного абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Теперь проверяем пересекающиеся записи в том же центре, но без ограничения по времени
+        overlapping_same_center_records = Record.objects.filter(
+            user=user,
+            subscription=subscription,
+            schedule__date=schedule.date,
+            schedule__section__center=current_center,
+            schedule__start_time=schedule.start_time  # Вы можете настроить это по своему усмотрению
+        )
+
+        if overlapping_same_center_records.exists():
+            return Response({'error': 'Вы уже записаны на это занятие в данном центре.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Проверка на запись в другой центр с разницей менее 1 часа
         conflicting_records_in_other_centers = Record.objects.filter(
             user=user,
             schedule__date=schedule.date
         ).exclude(
-            schedule__section__center=schedule.section.center  # Исключаем те же самые центры
+            schedule__section__center=current_center
         ).filter(
             schedule__start_time__range=(
                 (schedule_datetime - timedelta(hours=1)).time(),
