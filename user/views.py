@@ -157,25 +157,37 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework import status, generics
 from rest_framework.response import Response
 from .serializers import RegisterSerializer
+from rest_framework.permissions import IsAuthenticated
 
-class AdminCreateStaffView(generics.CreateAPIView):
-    permission_classes = [IsAdminUser]
+import logging
+logger = logging.getLogger(__name__)
+
+class AdminCreateStaffView(generics.CreateAPIView): 
+    permission_classes = [IsAuthenticated]
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
+        logger.info(f"User ID: {request.user.id}, Role: {request.user.role}, Is Staff: {request.user.is_staff}")
+        
+        if request.user.role != 'ADMIN':
+            return Response(
+                {"detail": "Only admins can create staff users."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         data = request.data.copy()
         data['role'] = 'STAFF'
-
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-
         user = serializer.save()
-
         user.is_verified = True
         user.is_active = True
         user.save()
-
+        
         return Response(
             {"detail": "Staff user created successfully."},
             status=status.HTTP_201_CREATED
         )
+
+
+

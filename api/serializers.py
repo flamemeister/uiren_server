@@ -87,8 +87,6 @@ class SectionSerializer(serializers.ModelSerializer):
 
         return section
 
-
-
 class SubscriptionSerializer(serializers.ModelSerializer):
     freeze_days = serializers.IntegerField(write_only=True, required=False)
 
@@ -104,9 +102,67 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 class ScheduleSerializer(serializers.ModelSerializer):
+    weekly_pattern = serializers.JSONField(write_only=True, required=False)
+
     class Meta:
         model = Schedule
-        fields = ['id', 'section', 'date', 'start_time', 'end_time', 'capacity', 'reserved', 'status']
+        fields = ['id', 'section', 'date', 'start_time', 'end_time', 'capacity', 'reserved', 'status', 'weekly_pattern']
+
+    def to_internal_value(self, data):
+        # Conditionally make `date`, `start_time`, `end_time`, and `capacity` optional if `weekly_pattern` is present
+        if 'weekly_pattern' in data:
+            self.fields['date'].required = False
+            self.fields['start_time'].required = False
+            self.fields['end_time'].required = False
+            self.fields['capacity'].required = False
+        return super().to_internal_value(data)
+
+    def create(self, validated_data):
+        # Check if `weekly_pattern` is provided
+        weekly_pattern = validated_data.pop('weekly_pattern', None)
+        
+        # Generate schedules based on `weekly_pattern` for the next 30 days
+        if weekly_pattern:
+            self._generate_schedules_for_next_month(validated_data['section'], weekly_pattern)
+            # Optionally return the first schedule or a message
+            return Schedule.objects.filter(section=validated_data['section']).order_by('-id').first()
+        
+        # If no `weekly_pattern`, proceed with creating a single schedule entry
+        return super().create(validated_data)
+
+    def _generate_schedules_for_next_month(self, section, weekly_pattern):
+        today = timezone.now().date()
+        end_date = today + timedelta(days=30)
+
+        day_mapping = {
+            'Понедельник': 'Monday',
+            'Вторник': 'Tuesday',
+            'Среда': 'Wednesday',
+            'Четверг': 'Thursday',
+            'Пятница': 'Friday',
+            'Суббота': 'Saturday',
+            'Воскресенье': 'Sunday'
+        }
+
+        current_date = today
+        while current_date <= end_date:
+            day_name = current_date.strftime('%A')
+            for pattern in weekly_pattern:
+                if day_mapping.get(pattern['day']) == day_name:
+                    for interval in pattern['intervals']:
+                        start_time = interval.get('start_time')
+                        end_time = interval.get('end_time')
+                        capacity = interval.get('capacity', 20)
+
+                        if start_time and end_time:
+                            Schedule.objects.create(
+                                section=section,
+                                date=current_date,
+                                start_time=start_time,
+                                end_time=end_time,
+                                capacity=capacity,
+                            )
+            current_date += timedelta(days=1)
 
 class RecordSerializer(serializers.ModelSerializer):
     schedule = ScheduleSerializer(read_only=True)

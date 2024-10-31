@@ -40,11 +40,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('email', 'phone_number', 'first_name', 'last_name', 'iin', 'password', 'role')
 
     def validate(self, data):
-        """
-        Ensure that at least either email or phone number is provided.
-        """
+        # Ensure either email or phone number is provided
         if not data.get('email') and not data.get('phone_number'):
             raise serializers.ValidationError("Either email or phone number must be provided.")
+        
+        # Skip IIN validation if the role is STAFF
+        if data.get('role') != 'STAFF' and not data.get('iin'):
+            raise serializers.ValidationError("IIN is required for non-staff users.")
+        
         return data
 
     def create(self, validated_data):
@@ -57,7 +60,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             phone_number=validated_data.get('phone_number'),
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
-            iin=validated_data['iin'],
+            iin=validated_data.get('iin'),  # This will be None for staff if not provided
             password=password,
             role=role
         )
@@ -76,6 +79,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             send_verification_sms(user)
 
         return user
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:

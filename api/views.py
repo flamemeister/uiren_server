@@ -177,21 +177,20 @@ class ScheduleViewSet(viewsets.ModelViewSet):
     filterset_fields = ['section', 'status', 'date', 'start_time', 'end_time', 'records__user__id', 'section__center']
     search_fields = ['section__name', 'section__center__name']
     ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
-    
-    def create(self, request, *args, **kwargs):
-        schedules_data = request.data.get('schedules', [])
-        
-        if not isinstance(schedules_data, list) or not schedules_data:
-            return Response({'error': 'Необходимо предоставить список расписаний.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        schedules = []
-        for schedule_data in schedules_data:
-            serializer = self.get_serializer(data=schedule_data)
-            serializer.is_valid(raise_exception=True)
-            schedules.append(serializer.save())
+    def create(self, request, *args, **kwargs):
+        # Check if weekly_pattern is in the request, then pass it to the serializer
+        weekly_pattern = request.data.get('weekly_pattern', None)
         
-        # Return the created schedules
-        return Response(self.get_serializer(schedules, many=True).data, status=status.HTTP_201_CREATED)
+        if weekly_pattern:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()  # This will generate schedules for the next 30 days
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        # Fallback if weekly_pattern is missing, to handle a single schedule creation
+        return super().create(request, *args, **kwargs)
+
 
     def get_queryset(self):
         if self.request.user.role == 'STAFF':
