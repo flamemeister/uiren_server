@@ -257,7 +257,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         # Проверка: если до занятия больше 24 часов, запись не разрешена
         time_difference = schedule_datetime - current_datetime
         if time_difference > timedelta(hours=24):
-            return Response({'error': 'Вы не можете записаться на это занятие, так как до его начала больше 24 часов.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Запись на занятие возможна, только если до его начала осталось менее 24 часов. В данный момент запись недоступна.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Получаем центр текущего расписания
         current_center = schedule.section.center
