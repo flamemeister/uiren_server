@@ -70,7 +70,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Child not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserByTokenView(generics.RetrieveAPIView):
-    permission_classes = [AllowAny]  
+    permission_classes = [IsAuthenticated]  
     serializer_class = UserDetailSerializer
     pagination_class = StandardResultsSetPagination
 
@@ -80,7 +80,7 @@ class UserByTokenView(generics.RetrieveAPIView):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = [AllowAny]  
+    permission_classes = [IsAuthenticated]  
     pagination_class = StandardResultsSetPagination
 
     def get_object(self):
@@ -163,7 +163,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AdminCreateStaffView(generics.CreateAPIView): 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
