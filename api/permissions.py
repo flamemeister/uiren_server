@@ -15,3 +15,17 @@ class IsStaffForCenter(permissions.BasePermission):
             return obj.center.users.filter(id=request.user.id).exists()
 
         return False
+
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+
+class AllowAnyForGETOtherwiseIsAuthenticated(BasePermission):
+    """
+    Разрешает неаутентифицированный доступ для GET-запросов,
+    но требует аутентификацию для всех других запросов.
+    """
+    def has_permission(self, request, view):
+        # Разрешаем доступ для неаутентифицированных GET-запросов
+        if request.method in SAFE_METHODS:
+            return True
+        # Для всех других методов требуется аутентификация
+        return request.user and request.user.is_authenticated

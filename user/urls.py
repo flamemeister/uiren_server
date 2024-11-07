@@ -19,6 +19,5 @@ urlpatterns = [
     path('register-device-token/', register_device_token, name='register-device-token'),
     path('admin/create-staff/', AdminCreateStaffView.as_view(), name='admin-create-staff'),
 
-
     path('', include(router.urls)),
 ]

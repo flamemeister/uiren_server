@@ -10,13 +10,24 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from rest_framework.exceptions import ValidationError
 from .tasks import notify_user_after_recording
+from .permissions import AllowAnyForGETOtherwiseIsAuthenticated  # Импортируем новое разрешение
+
+from rest_framework import viewsets, status, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+from .models import Center
+from .serializers import CenterSerializer
+from .pagination import StandardResultsSetPagination
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    
+    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated]  # Применяем новое разрешение
+
+
     search_fields = ['name', 'location', 'description']
     filterset_fields = ['description', 'latitude', 'longitude', 'sections__id', 'users']
     ordering_fields = ['name', 'location', 'latitude', 'longitude']
@@ -24,9 +35,6 @@ class CenterViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         new_param = self.request.query_params.get('new', None)
-
-        if self.request.user.is_authenticated and self.request.user.role == 'STAFF':
-            queryset = queryset.filter(users=self.request.user)
 
         if new_param is not None:
             try:
@@ -50,11 +58,14 @@ class CenterViewSet(viewsets.ModelViewSet):
                 raise ValidationError("У вас нет прав для редактирования этого центра.")
         serializer.save()
 
+
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated]  # Применяем новое разрешение
+
     
     search_fields = ['name', 'description']
     filterset_fields = ['category', 'center']
@@ -88,6 +99,8 @@ class SectionCategoryViewSet(viewsets.ModelViewSet):
     queryset = SectionCategory.objects.all()
     serializer_class = SectionCategorySerializer
     pagination_class = StandardResultsSetPagination
+    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated]  # Применяем новое разрешение
+
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
