@@ -106,7 +106,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-        reset_link = f"{request.build_absolute_uri('/user/password-reset-confirm/')}?uid={uid}&token={token}"
+        reset_link = f"{request.build_absolute_uri('/user/password-reset-confirm/')}{uid}/{token}"
         
         send_mail(
             subject="Сброс пароля",

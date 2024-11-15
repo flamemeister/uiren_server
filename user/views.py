@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
 from .pagination import StandardResultsSetPagination
+from django.shortcuts import render
 
 
 @api_view(['POST'])
@@ -124,16 +125,30 @@ class PasswordResetRequestView(generics.GenericAPIView):
 class PasswordResetConfirmView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
-    pagination_class = StandardResultsSetPagination
+
+    def get(self, request, *args, **kwargs):
+        uidb64 = kwargs.get('uidb64')
+        token = kwargs.get('token')
+
+        context = {
+            'uidb64': uidb64,
+            'token': token,
+        }
+
+        return render(request, 'auth/password_reset_form.html', context)
 
     def post(self, request, *args, **kwargs):
-        request.data['uid'] = request.query_params.get('uid')
-        request.data['token'] = request.query_params.get('token')
+        # Handle form submission
+        data = request.data.copy()
+        data['uid'] = kwargs.get('uidb64')
+        data['token'] = kwargs.get('token')
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"detail": "Пароль успешно сброшен."})
+
+        return Response({"detail": "Пароль успешно сброшен."}, status=status.HTTP_200_OK)
+
 
 class VerifySMSView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
@@ -188,6 +203,7 @@ class AdminCreateStaffView(generics.CreateAPIView):
             {"detail": "Staff user created successfully."},
             status=status.HTTP_201_CREATED
         )
+
 
 
 
