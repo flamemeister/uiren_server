@@ -19,6 +19,7 @@ from rest_framework.exceptions import ValidationError
 from .models import Center
 from .serializers import CenterSerializer
 from .pagination import StandardResultsSetPagination
+from django.db import transaction
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
@@ -187,22 +188,63 @@ class ScheduleViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     
-    filterset_fields = ['section', 'status', 'date', 'start_time', 'end_time', 'records__user__id', 'section__center']
+    filterset_fields = [
+        'section', 'status', 'date', 'start_time', 'end_time', 
+        'records__user__id', 'section__center'
+    ]
     search_fields = ['section__name', 'section__center__name']
     ordering_fields = ['start_time', 'end_time', 'capacity', 'reserved']
 
     def create(self, request, *args, **kwargs):
-        # Check if weekly_pattern is in the request, then pass it to the serializer
+        """
+        Handle creation of single schedule, bulk schedules, or schedules based on a weekly pattern.
+        """
+        # Check if 'schedules' key exists for bulk creation
+        if 'schedules' in request.data:
+            schedules = request.data.get('schedules', [])
+            
+            if not isinstance(schedules, list):
+                return Response(
+                    {"error": "'schedules' must be a list of schedule objects."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not schedules:
+                return Response(
+                    {"error": "'schedules' list is empty."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            return self.bulk_create(schedules)
+        
+        # Existing logic for weekly_pattern
         weekly_pattern = request.data.get('weekly_pattern', None)
         
         if weekly_pattern:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            serializer.save()  # This will generate schedules for the next 30 days
+            with transaction.atomic():
+                serializer.save()  # Generates schedules based on the weekly pattern
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        # Fallback if weekly_pattern is missing, to handle a single schedule creation
+        # Fallback for single schedule creation
         return super().create(request, *args, **kwargs)
+
+    def bulk_create(self, schedules):
+        """
+        Handle bulk creation of schedules.
+        """
+        serializer = self.get_serializer(data=schedules, many=True)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            self.perform_bulk_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_bulk_create(self, serializer):
+        """
+        Save the validated bulk schedules.
+        """
+        serializer.save()
 
 
     def get_queryset(self):
