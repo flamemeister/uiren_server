@@ -372,9 +372,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         schedule.save()
 
         serializer = self.get_serializer(record)
-        notify_user_after_recording.delay(record.id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def unconfirmed_records(self, request):
@@ -445,6 +443,7 @@ class RecordViewSet(viewsets.ModelViewSet):
         record.cancel_reservation()
         
         return Response({'message': 'Резервирование успешно отменено.'}, status=status.HTTP_200_OK)
+
 
 
 class FeedbackViewSet(viewsets.ModelViewSet):
