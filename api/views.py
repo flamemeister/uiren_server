@@ -10,28 +10,27 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from rest_framework.exceptions import ValidationError
 from .tasks import notify_user_after_recording
-from .permissions import AllowAnyForGETOtherwiseIsAuthenticated  # Импортируем новое разрешение
-
-from rest_framework import viewsets, status, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
-from .models import Center
-from .serializers import CenterSerializer
-from .pagination import StandardResultsSetPagination
+from .permissions import AllowAnyForGETOtherwiseIsAuthenticated  
 from django.db import transaction
+from .filters import CenterFilter, SectionFilter
 
 class CenterViewSet(viewsets.ModelViewSet):
     queryset = Center.objects.all()
     serializer_class = CenterSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated]  # Применяем новое разрешение
+    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated] 
+    filterset_class = CenterFilter  
+    search_fields = ['name', 'location', 'description']  
+    filterset_fields = {
+    'description': ['icontains'],
+    'latitude': ['exact'],
+    'longitude': ['exact'],
+    'sections__id': ['exact'],
+    'users': ['icontains'],
+}
 
-
-    search_fields = ['name', 'location', 'description']
-    filterset_fields = ['description', 'latitude', 'longitude', 'sections__id', 'users']
-    ordering_fields = ['name', 'location', 'latitude', 'longitude']
+    ordering_fields = ['name_icontains', 'location', 'latitude', 'longitude']
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -65,8 +64,8 @@ class SectionViewSet(viewsets.ModelViewSet):
     serializer_class = SectionSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated]  # Применяем новое разрешение
-
+    permission_classes = [AllowAnyForGETOtherwiseIsAuthenticated]  
+    filterset_class = SectionFilter
     
     search_fields = ['name', 'description']
     filterset_fields = ['category', 'center']
@@ -309,15 +308,12 @@ class RecordViewSet(viewsets.ModelViewSet):
         current_datetime = timezone.now()
         schedule_datetime = timezone.make_aware(datetime.combine(schedule.date, schedule.start_time))
 
-        # Проверка: если до занятия больше 24 часов, запись не разрешена
         time_difference = schedule_datetime - current_datetime
         if time_difference > timedelta(hours=24):
             return Response({'error': 'Запись на занятие возможна, только если до его начала осталось менее 24 часов. В данный момент запись недоступна.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Получаем центр текущего расписания
         current_center = schedule.section.center
 
-        # Проверка на пересекающиеся записи в разных центрах
         overlapping_records = Record.objects.filter(
             user=user,
             subscription=subscription,
@@ -334,19 +330,17 @@ class RecordViewSet(viewsets.ModelViewSet):
         if overlapping_records.exists():
             return Response({'error': 'Вы не можете записаться на пересекающиеся занятия в разных центрах с использованием одного абонемента.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Теперь проверяем пересекающиеся записи в том же центре, но без ограничения по времени
         overlapping_same_center_records = Record.objects.filter(
             user=user,
             subscription=subscription,
             schedule__date=schedule.date,
             schedule__section__center=current_center,
-            schedule__start_time=schedule.start_time  # Вы можете настроить это по своему усмотрению
+            schedule__start_time=schedule.start_time  
         )
 
         if overlapping_same_center_records.exists():
             return Response({'error': 'Вы уже записаны на это занятие в данном центре.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Проверка на запись в другой центр с разницей менее 1 часа
         conflicting_records_in_other_centers = Record.objects.filter(
             user=user,
             schedule__date=schedule.date
@@ -362,7 +356,6 @@ class RecordViewSet(viewsets.ModelViewSet):
         if conflicting_records_in_other_centers.exists():
             return Response({'error': 'Вы не можете записаться на два занятия в разных центрах с разницей менее 1 часа.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Создание записи
         record = Record.objects.create(
             user=user,
             schedule=schedule,

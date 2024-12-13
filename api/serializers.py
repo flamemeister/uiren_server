@@ -22,18 +22,14 @@ class SectionSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'category', 'image', 'center', 'description', 'qr_code', 'weekly_pattern']
 
     def create(self, validated_data):
-        # Извлекаем weekly_pattern
         weekly_pattern = validated_data.pop('weekly_pattern', None)
 
-        # Создаем секцию
         section = Section.objects.create(**validated_data)
 
-        # Сохраняем weekly_pattern в модели, если он существует
         if weekly_pattern:
             section.weekly_pattern = weekly_pattern
             section.save()
 
-        # Генерируем расписание на основе weekly_pattern
         self._generate_schedules_for_next_month(section, weekly_pattern)
         return section
 
@@ -68,7 +64,7 @@ class SectionSerializer(serializers.ModelSerializer):
                                 date=current_date,
                                 start_time=start_time,
                                 end_time=end_time,
-                                capacity=20,  # Примерное значение, можно менять
+                                capacity=20,  
                             )
             current_date += timedelta(days=1)
 
@@ -76,12 +72,10 @@ class SectionSerializer(serializers.ModelSerializer):
         weekly_pattern = validated_data.pop('weekly_pattern', None)
         section = super().update(instance, validated_data)
 
-        # Обновляем weekly_pattern, если оно передано
         if weekly_pattern:
             section.weekly_pattern = weekly_pattern
             section.save()
 
-            # Удаляем старое расписание и создаем новое
             section.schedules.all().delete()
             self._generate_schedules_for_next_month(section, weekly_pattern)
 
@@ -109,7 +103,6 @@ class ScheduleSerializer(serializers.ModelSerializer):
         fields = ['id', 'section', 'date', 'start_time', 'end_time', 'capacity', 'reserved', 'status', 'weekly_pattern']
 
     def to_internal_value(self, data):
-        # Conditionally make `date`, `start_time`, `end_time`, and `capacity` optional if `weekly_pattern` is present
         if 'weekly_pattern' in data:
             self.fields['date'].required = False
             self.fields['start_time'].required = False
@@ -118,16 +111,12 @@ class ScheduleSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def create(self, validated_data):
-        # Check if `weekly_pattern` is provided
         weekly_pattern = validated_data.pop('weekly_pattern', None)
         
-        # Generate schedules based on `weekly_pattern` for the next 30 days
         if weekly_pattern:
             self._generate_schedules_for_next_month(validated_data['section'], weekly_pattern)
-            # Optionally return the first schedule or a message
             return Schedule.objects.filter(section=validated_data['section']).order_by('-id').first()
         
-        # If no `weekly_pattern`, proceed with creating a single schedule entry
         return super().create(validated_data)
 
     def _generate_schedules_for_next_month(self, section, weekly_pattern):

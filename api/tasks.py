@@ -10,7 +10,6 @@ TWILIO_ACCOUNT_SID = 'AC8a0514493862a7c1b2357b4156b05ecb'
 TWILIO_AUTH_TOKEN = '6d5022469449fdeeeca39f7adda3117e'
 TWILIO_WHATSAPP_FROM = 'whatsapp:+14155238886'
 
-# Настройка клиента Twilio
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 @shared_task
@@ -19,7 +18,6 @@ def notify_users_two_hours_before_lesson():
     now = timezone.now()
     two_hours_later = now + timedelta(hours=2)
 
-    # Получить записи для занятий, которые начнутся в следующие 2 часа, и уведомление не было отправлено
     records = Record.objects.filter(
         is_canceled=False,
         notification_sent=False,
@@ -36,7 +34,6 @@ def notify_users_two_hours_before_lesson():
             user = record.user
             if user.phone_number:
                 try:
-                    # Форматировать время начала урока как hh:mm
                     formatted_time = schedule.start_time.strftime('%H:%M')
                     message_body = f"Напоминание: Ваш урок '{schedule.section.name}' начнется через 2 часа в {formatted_time}. Будьте готовы!"
                     client.messages.create(
@@ -44,7 +41,6 @@ def notify_users_two_hours_before_lesson():
                         from_=TWILIO_WHATSAPP_FROM,
                         to=f'whatsapp:{user.phone_number}'
                     )
-                    # Отметить уведомление как отправленное
                     record.notification_sent = True
                     record.save(update_fields=['notification_sent'])
                 except Exception as e:
@@ -75,7 +71,6 @@ def notify_user_after_recording(record_id):
 
     if user.phone_number:
         try:
-            # Отправить сообщение WhatsApp о записи на занятие
             message_body = f"Вы успешно записаны на урок '{schedule.section.name}', который пройдет {schedule.date} в {schedule.start_time.strftime('%H:%M')}. Ждем вас!"
             client.messages.create(
                 body=message_body,
